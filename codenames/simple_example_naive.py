@@ -1,7 +1,7 @@
 import json
 from game import Game
-from players.codemaster_CLM import AICodemaster
-from players.guesser_CLM import AIGuesser
+from players.codemaster_naive import AICodemaster
+from players.guesser_naive import AIGuesser
 
 
 def simpleExample(single_team):
@@ -9,10 +9,10 @@ def simpleExample(single_team):
     print("\nclearing results folder...\n")
     Game.clear_results()
 
-    seed = 0
+    seed = 1
 
-    print("starting game")
-    Game(AICodemaster, AIGuesser, AICodemaster, AIGuesser, seed=seed, do_print=True, game_name="GPT-GPT", single_team=single_team).run()
+    print("starting game with naive agents")
+    Game(AICodemaster, AIGuesser, AICodemaster, AIGuesser, seed=seed, do_print=True, game_name="Naive-Naive", single_team=single_team).run()
 
     # display the results
     print(f"\nfor seed {seed} ~")
@@ -27,5 +27,5 @@ def simpleExample(single_team):
 
 
 if __name__ == "__main__":
-    #simpleExample(False)    # Two Teams Track
-    simpleExample(True)     # Single Team Track
+    simpleExample(False)    # Two Teams Track
+    #simpleExample(True)     # Single Team Track
