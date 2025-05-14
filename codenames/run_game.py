@@ -25,6 +25,16 @@ class GameRun:
         parser.add_argument("--no_log", help="Supress logging", action='store_true', default=False)
         parser.add_argument("--no_print", help="Supress printing", action='store_true', default=False)
         parser.add_argument("--game_name", help="Name of game in log", default="default")
+        
+        # Add the missing model and version arguments
+        parser.add_argument("--cmr_model", help="Model for red codemaster", default="")
+        parser.add_argument("--cmr_version", help="Version for red codemaster model", default="")
+        parser.add_argument("--gr_model", help="Model for red guesser", default="")
+        parser.add_argument("--gr_version", help="Version for red guesser model", default="")
+        parser.add_argument("--cmb_model", help="Model for blue codemaster", default="")
+        parser.add_argument("--cmb_version", help="Version for blue codemaster model", default="")
+        parser.add_argument("--gb_model", help="Model for blue guesser", default="")
+        parser.add_argument("--gb_version", help="Version for blue guesser model", default="")
 
         args = parser.parse_args()
 
