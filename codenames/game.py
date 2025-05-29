@@ -389,4 +389,4 @@ class Game:
         if self.do_log:
             self.write_results(turn_counter)
         print("Game Over")
-        sys.stdout.flush()
+        sys.stdout.flush(

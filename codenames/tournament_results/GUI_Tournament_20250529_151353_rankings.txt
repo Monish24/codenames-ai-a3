@@ -1,0 +1,76 @@
+TOURNAMENT RANKINGS: GUI_Tournament_20250529_151353
+Max matchups: 500, Games per matchup: 1
+============================================================
+
+ 1. TOT_CM+EMD_Guesser
+    TrueSkill: 37.00 ± 2.60
+    Record: 20-2 (90.9%)
+    Games Played: 22
+    Avg Words Found: 7.3
+
+ 2. MCTS_CM+Naive_Guesser
+    TrueSkill: 36.47 ± 2.80
+    Record: 21-1 (95.5%)
+    Games Played: 22
+    Avg Words Found: 8.2
+
+ 3. MCTS_CM+EMD_Guesser
+    TrueSkill: 31.07 ± 2.47
+    Record: 16-6 (72.7%)
+    Games Played: 22
+    Avg Words Found: 6.9
+
+ 4. EMD_CM+EMD_Guesser
+    TrueSkill: 29.38 ± 2.37
+    Record: 15-7 (68.2%)
+    Games Played: 22
+    Avg Words Found: 7.0
+
+ 5. TOT_CM+Naive_Guesser
+    TrueSkill: 27.24 ± 2.11
+    Record: 13-9 (59.1%)
+    Games Played: 22
+    Avg Words Found: 6.4
+
+ 6. EMD_CM+Naive_Guesser
+    TrueSkill: 25.32 ± 2.14
+    Record: 11-11 (50.0%)
+    Games Played: 22
+    Avg Words Found: 6.6
+
+ 7. CL_CM+EMD_Guesser
+    TrueSkill: 22.81 ± 2.12
+    Record: 8-14 (36.4%)
+    Games Played: 22
+    Avg Words Found: 6.4
+
+ 8. MCTS_CM+MCTS_Guesser
+    TrueSkill: 22.44 ± 2.14
+    Record: 9-13 (40.9%)
+    Games Played: 22
+    Avg Words Found: 3.4
+
+ 9. TOT_CM+MCTS_Guesser
+    TrueSkill: 20.42 ± 2.25
+    Record: 6-16 (27.3%)
+    Games Played: 22
+    Avg Words Found: 4.1
+
+10. EMD_CM+MCTS_Guesser
+    TrueSkill: 19.16 ± 2.16
+    Record: 6-16 (27.3%)
+    Games Played: 22
+    Avg Words Found: 3.1
+
+11. CL_CM+Naive_Guesser
+    TrueSkill: 17.50 ± 2.38
+    Record: 4-18 (18.2%)
+    Games Played: 22
+    Avg Words Found: 6.4
+
+12. CL_CM+MCTS_Guesser
+    TrueSkill: 15.24 ± 2.42
+    Record: 3-19 (13.6%)
+    Games Played: 22
+    Avg Words Found: 4.0
+

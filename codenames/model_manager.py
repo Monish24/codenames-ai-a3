@@ -30,8 +30,7 @@ class ModelManager:
         # Only initialize once
         if not hasattr(self, '_initialized'):
             self._initialized = True
-            print("🤖 Model Manager initialized")
-    
+            print("Model Manager initialized")
     def get_glove_model(self, model_name: str = "glove-wiki-gigaword-300"):
         """Get shared GloVe model, loading if necessary"""
         return self._get_model(f"glove_{model_name}", self._load_glove_model, model_name)

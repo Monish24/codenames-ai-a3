@@ -18,7 +18,7 @@ class CodemasterSBERT(Codemaster):
         
         # Use shared model instead of loading new instance
         print(f"Using shared {model_name} model...")
-        self.model = get_glove_model(model_name)
+        self.glove_model = get_glove_model(model_name)
         
         # Game state
         self.words_on_board = []
@@ -226,7 +226,7 @@ class CodemasterSBERT(Codemaster):
                     
                     for clue, score, connected, target_sims in clues:
                         # Bonus for multi-word clues
-                        multi_bonus = 0.3 if connected >= 2 else 0
+                        multi_bonus = 0.8 if connected >= 2 else 0
                         adjusted_score = score + multi_bonus
                         
                         if adjusted_score > best_score and connected >= 2:

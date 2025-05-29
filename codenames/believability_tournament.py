@@ -5,6 +5,7 @@ from dataclasses import dataclass, asdict
 from typing import List, Dict, Tuple
 import re
 import random
+from model_manager import get_glove_model               # ← NEW
 
 from tournament import TournamentManager, MatchResult
 
@@ -34,9 +35,9 @@ class BelievabilityAssessor:
     """Assesses how believable/human-like clues are"""
     
     def __init__(self, glove_model=None):
-        self.glove_model = glove_model
-        
-        # Load word frequency data (simplified version)
+        self.glove_model = glove_model or get_glove_model("glove-wiki-gigaword-300")
+
+        # a toy frequency table – replace with corpus stats if you have them
         self.word_frequencies = self._load_word_frequencies()
         
         # Common human reasoning patterns (discovered from data, not hardcoded)
