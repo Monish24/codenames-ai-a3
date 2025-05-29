@@ -12,15 +12,21 @@ In the main folder codenames apart from this three folders we can find, differen
 
 # How to Run a Single Game
 To run a single game you can either run the python script run_game.py using the command 
+```
 python run_game.py
+```
  or first run the gui and start a game there.
 
 # How to Run a Tournament
 To run a tournament you can either run the python script run_believability_tournament.py using the command:
+```
 python run_believability_tournament.py
+```
 or first run the gui and start a tournament there.
 
 # How to Run the GUI
 To run the GUI you must run the python script codenames_gui.py using the command:
+```
 python codenames_gui.py
+```
 from there you can select agent to play single games or run a tournament.
