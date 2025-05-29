@@ -10,8 +10,19 @@ import os
 import json 
 import csv   
 from datetime import datetime  
+from collections import defaultdict
 
 
+# Enhanced tournament imports
+try:
+    from tournament import EnhancedTournamentManager
+    from believability_tournament import EnhancedBelievabilityTournament
+    ENHANCED_TOURNAMENT_AVAILABLE = True
+except ImportError:
+    ENHANCED_TOURNAMENT_AVAILABLE = False
+    print("Enhanced tournament features not available")
+
+# Try to import original tournament as fallback
 try:
     from believability_tournament import BelievabilityTournament
     TOURNAMENT_AVAILABLE = True
@@ -35,21 +46,44 @@ class CodenamesGUI:
         self.board_initialized = False
         self.spymaster_mode = True
         
-        # Game stats
+        # FIXED: Game stats with proper reset handling
         self.red_words_found = 0
         self.blue_words_found = 0
         self.current_turn = "Red"
+        self.max_red_words = 9
+        self.max_blue_words = 8
         
         # Tournament state
         self.tournament_running = False
+        self.current_game_number = 0
+        self.total_tournament_games = 0
+        
+        # Enhanced data collection
+        self.collect_enhanced_data = True
+        self.current_game_clues = []
+        self.current_game_guesses = []
+        self.tournament_all_clues = []
+        self.tournament_all_guesses = []
+        
+        # Enhanced metrics tracking
+        self.agent_performance_tracker = {}
         
         self.setup_gui()
         self.setup_stdout_redirection()
         self.root.after(100, self.check_output_queue)
     
+    def get_agent_performance(self, agent_name):
+        """Helper to get agent performance with defaults"""
+        if agent_name not in self.agent_performance_tracker:
+            self.agent_performance_tracker[agent_name] = {
+                'games_played': 0, 'wins': 0, 'total_clues': 0, 'total_guesses': 0,
+                'clue_efficiency': [], 'guess_accuracy': []
+            }
+        return self.agent_performance_tracker[agent_name]
+    
     def setup_gui(self):
         """Setup the complete GUI"""
-        self.root.title("Codenames AI Game & Tournament")
+        self.root.title("Enhanced Codenames AI Game & Tournament")
         self.root.geometry("1100x750")
         self.root.configure(bg="#2C3E50")
         
@@ -58,11 +92,11 @@ class CodenamesGUI:
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Title
-        tk.Label(main_frame, text="Codenames AI Game & Tournament", 
+        tk.Label(main_frame, text="Enhanced Codenames AI Game & Tournament", 
                 font=("Helvetica", 22, "bold"), bg="#242731", fg="#E7E1BD").pack(pady=10)
         
         # Control buttons
-        self.create_controls(main_frame)
+        self.create_enhanced_controls(main_frame)
         
         # Team configuration
         self.create_team_config(main_frame)
@@ -70,13 +104,14 @@ class CodenamesGUI:
         # Game area (board + info panel)
         self.create_game_area(main_frame)
     
-    def create_controls(self, parent):
-        """Create control buttons"""
+    def create_enhanced_controls(self, parent):
+        """Enhanced control buttons"""
         controls = tk.Frame(parent, bg="#242731")
         controls.pack(fill=tk.X, pady=5)
         
         button_config = {"font": ("Helvetica", 12), "relief": tk.FLAT, "bd": 0, "padx": 10}
         
+        # Existing buttons
         self.start_button = tk.Button(controls, text="Start Game", command=self.start_game, 
                                      bg="#4CAF50", fg="black", width=15, **button_config)
         self.start_button.pack(side=tk.LEFT, padx=5)
@@ -85,9 +120,12 @@ class CodenamesGUI:
                                     bg="#F44336", fg="black", width=15, state=tk.DISABLED, **button_config)
         self.stop_button.pack(side=tk.LEFT, padx=5)
         
-        self.tournament_button = tk.Button(controls, text="Tournament", command=self.open_tournament,
-                                          bg="#9C27B0", fg="black", width=15,
-                                          state=tk.NORMAL if TOURNAMENT_AVAILABLE else tk.DISABLED, **button_config)
+        # Enhanced tournament button
+        tournament_state = tk.NORMAL if ENHANCED_TOURNAMENT_AVAILABLE else tk.DISABLED
+        self.tournament_button = tk.Button(controls, text="Enhanced Tournament", 
+                                          command=self.open_enhanced_tournament,
+                                          bg="#9C27B0", fg="black", width=18, 
+                                          state=tournament_state, **button_config)
         self.tournament_button.pack(side=tk.LEFT, padx=5)
         
         self.spymaster_button = tk.Button(controls, text="Spymaster View", command=self.toggle_view,
@@ -151,7 +189,7 @@ class CodenamesGUI:
         
         # Info frame  
         info_frame = tk.Frame(content_paned, bg="#1E1F29", bd=0)
-        self.create_info_panel(info_frame)
+        self.create_enhanced_info_panel(info_frame)
         
         content_paned.add(board_frame, stretch="always", width=600)
         content_paned.add(info_frame, stretch="always", width=400)
@@ -192,34 +230,44 @@ class CodenamesGUI:
             board_grid.grid_rowconfigure(i, weight=1)
             board_grid.grid_columnconfigure(i, weight=1)
     
-    def create_info_panel(self, parent):
-        """Create the info panel with clue, guess, score, and log"""
-        # Current clue
+    def create_enhanced_info_panel(self, parent):
+        """Enhanced info panel with metrics"""
+        # Current clue section (enhanced)
         clue_frame = tk.Frame(parent, bg="#1E1F29", bd=1, relief=tk.GROOVE)
         clue_frame.pack(fill=tk.X, pady=5, padx=10)
-        tk.Label(clue_frame, text="Current Clue:", font=("Helvetica", 12, "bold"),
-                bg="#1E1F29", fg="#E7E1BD").pack(anchor=tk.W, padx=10, pady=5)
+        
+        clue_header = tk.Frame(clue_frame, bg="#1E1F29")
+        clue_header.pack(fill=tk.X, padx=10, pady=5)
+        
+        tk.Label(clue_header, text="Current Clue:", font=("Helvetica", 12, "bold"),
+                bg="#1E1F29", fg="#E7E1BD").pack(side=tk.LEFT)
+        
         self.clue_label = tk.Label(clue_frame, text="Waiting for clue...", 
                                   font=("Helvetica", 18, "bold"), bg="#1E1F29", fg="#F1C40F")
         self.clue_label.pack(padx=10, pady=5)
         
-        # Latest guess
+        # Enhanced guess section
         guess_frame = tk.Frame(parent, bg="#1E1F29", bd=1, relief=tk.GROOVE)
         guess_frame.pack(fill=tk.X, pady=5, padx=10)
-        tk.Label(guess_frame, text="Latest Guess:", font=("Helvetica", 12, "bold"),
-                bg="#1E1F29", fg="#E7E1BD").pack(anchor=tk.W, padx=10, pady=5)
+        
+        guess_header = tk.Frame(guess_frame, bg="#1E1F29")
+        guess_header.pack(fill=tk.X, padx=10, pady=5)
+        
+        tk.Label(guess_header, text="Latest Guess:", font=("Helvetica", 12, "bold"),
+                bg="#1E1F29", fg="#E7E1BD").pack(side=tk.LEFT)
+        
         self.guess_label = tk.Label(guess_frame, text="Waiting for guess...",
                                    font=("Helvetica", 18, "bold"), bg="#1E1F29", fg="white")
         self.guess_label.pack(padx=10, pady=5)
         
-        # Score display
-        self.create_score_display(parent)
+        # Enhanced score display
+        self.create_enhanced_score_display(parent)
         
         # Game log
         self.create_game_log(parent)
     
-    def create_score_display(self, parent):
-        """Create score display"""
+    def create_enhanced_score_display(self, parent):
+        """Enhanced score display with proper reset handling"""
         score_frame = tk.Frame(parent, bg="#1E1F29")
         score_frame.pack(fill=tk.X, pady=10, padx=10)
         
@@ -270,7 +318,8 @@ class CodenamesGUI:
             "blue_guess": {"foreground": "#4989C5"},
             "game_event": {"foreground": "#E7E1BD", "font": ("Helvetica", 12, "bold")},
             "win": {"foreground": "#FFD700", "font": ("Helvetica", 16, "bold")},
-            "debug": {"foreground": "#E67E22"}
+            "debug": {"foreground": "#E67E22"},
+            "tournament": {"foreground": "#9C27B0", "font": ("Helvetica", 12, "bold")}
         }
         
         for tag, config in tags.items():
@@ -340,38 +389,48 @@ class CodenamesGUI:
             self.reset_game_controls()
     
     def reset_game_state(self):
-        """Reset all game state"""
+        """FIXED: Proper game state reset for tournaments"""
+        # Reset board state
         self.board_words = []
         self.word_results = []
         self.guessed_words = set()
         self.board_initialized = False
+        
+        # FIXED: Reset scores properly
         self.red_words_found = 0
         self.blue_words_found = 0
         self.current_turn = "Red"
         
-        # Reset display
+        # Reset display elements
         self.clue_label.config(text="Waiting for clue...")
         self.guess_label.config(text="Waiting for guess...")
         self.red_score.config(text="0/9")
         self.blue_score.config(text="0/8")
         self.turn_label.config(text="")
         
-        # Clear log
-        self.log_text.config(state=tk.NORMAL)
-        self.log_text.delete(1.0, tk.END)
-        self.log_text.config(state=tk.DISABLED)
+        # FIXED: Only clear log if not in tournament
+        if not self.tournament_running:
+            self.log_text.config(state=tk.NORMAL)
+            self.log_text.delete(1.0, tk.END)
+            self.log_text.config(state=tk.DISABLED)
         
-        # Reset tiles
+        # FIXED: Reset board tiles properly
         for row in self.word_tiles:
             for tile in row:
-                tile.config(text="Loading...", bg="#E7E1BD", fg="#2C3E50", relief=tk.RAISED, bd=2)
+                tile.config(text="Loading...", bg="#E7E1BD", fg="#2C3E50", 
+                           relief=tk.RAISED, bd=2)
+        
+        # Reset enhanced data collection
+        self.current_game_clues = []
+        self.current_game_guesses = []
     
     def reset_game_controls(self):
         """Reset game controls after game ends"""
         self.game_running = False
         self.start_button.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
-        self.add_log_entry("Game Ended", "game_event")
+        if not self.tournament_running:
+            self.add_log_entry("Game Ended", "game_event")
     
     # ==================== OUTPUT PROCESSING ====================
     
@@ -394,38 +453,45 @@ class CodenamesGUI:
         try:
             while not self.output_queue.empty():
                 output = self.output_queue.get_nowait()
-                self.process_output(output)
+                self.process_enhanced_output(output)
         except:
             pass
         self.root.after(100, self.check_output_queue)
     
-    def process_output(self, output):
-        """Process game output - ENHANCED VERSION"""
+    def process_enhanced_output(self, output):
+        """Enhanced output processing"""
         if not output or not output.strip():
             return
         self.board_buffer += output
         clean = re.sub(r'\x1b\[[0-9;]*m', '', output).strip()
         
-        # Board extraction (once only)
+        # FIXED: Board extraction with proper reset and game numbering
         if (not self.board_initialized and
             "____________________________KEY"   in self.board_buffer and
             "___________________________BOARD" in self.board_buffer):
 
             if self.try_extract_board(self.board_buffer):
-                # success – clear the buffer so it doesn’t grow forever
                 self.board_buffer = ""
+                if self.tournament_running:
+                    self.current_game_number += 1
+                    self.add_log_entry(f"🎮 Game {self.current_game_number}: Board initialized", "debug")
             return
-
         
-        # Team turns
+        # Team turns with tournament game numbering
         if "RED TEAM TURN" in clean:
             self.current_turn = "Red"
             self.turn_label.config(text="Red Team's Turn", fg="#C13A37")
-            self.add_log_entry("Red Team's Turn", "red_turn")
+            log_text = "Red Team's Turn"
+            if self.tournament_running:
+                log_text = f"Game {self.current_game_number}: {log_text}"
+            self.add_log_entry(log_text, "red_turn")
         elif "BLUE TEAM TURN" in clean:
             self.current_turn = "Blue"
             self.turn_label.config(text="Blue Team's Turn", fg="#4989C5")
-            self.add_log_entry("Blue Team's Turn", "blue_turn")
+            log_text = "Blue Team's Turn"
+            if self.tournament_running:
+                log_text = f"Game {self.current_game_number}: {log_text}"
+            self.add_log_entry(log_text, "blue_turn")
         
         # Enhanced clue detection
         clue_patterns = [
@@ -438,18 +504,24 @@ class CodenamesGUI:
             match = re.search(pattern, clean, re.IGNORECASE)
             if match:
                 if "STRUCTURED_CLUE" in pattern:
-                    _, clue_word, clue_num, team = match.groups()
+                    codemaster_name, clue_word, clue_num, team = match.groups()
                 else:
                     clue_word, clue_num = match.groups()
                     team = self.current_turn
+                    codemaster_name = "Unknown"
                 
                 clue_text = f"{clue_word.strip().upper()} ({clue_num})"
-                if "RED" in team.upper() or self.current_turn == "Red":
-                    self.clue_label.config(text=clue_text, fg="#E74C3C")
-                    self.add_log_entry(f"Red Codemaster Gave Clue: {clue_word} {clue_num}", "red_clue")
-                else:
-                    self.clue_label.config(text=clue_text, fg="#3498DB")
-                    self.add_log_entry(f"Blue Codemaster Gave Clue: {clue_word} {clue_num}", "blue_clue")
+                team_color = "#E74C3C" if "RED" in team.upper() or self.current_turn == "Red" else "#3498DB"
+                
+                self.clue_label.config(text=clue_text, fg=team_color)
+                
+                # Enhanced clue logging
+                log_text = f"Clue: {clue_word} {clue_num}"
+                if self.tournament_running:
+                    log_text = f"Game {self.current_game_number}: {log_text} ({codemaster_name})"
+                
+                log_color = "red_clue" if self.current_turn == "Red" else "blue_clue"
+                self.add_log_entry(log_text, log_color)
                 return
         
         # Enhanced guess detection
@@ -472,46 +544,64 @@ class CodenamesGUI:
                 
                 self.guess_label.config(text=f"{guess_word} ⏳")
                 color = "red_guess" if "RED" in team.upper() or self.current_turn == "Red" else "blue_guess"
-                self.add_log_entry(f"{self.current_turn} Guesser Guessed: {guess_word}", color)
+                
+                log_text = f"Guess: {guess_word}"
+                if self.tournament_running:
+                    log_text = f"Game {self.current_game_number}: {log_text}"
+                
+                self.add_log_entry(log_text, color)
                 return
         
-        # Enhanced result detection
+        # FIXED: Enhanced result detection with proper score tracking
         if "GUESS_RESULT:" in clean:
             parts = clean.split("GUESS_RESULT:")[1].strip().split("|")
             if len(parts) >= 3:
                 word, team_type, turn = parts[:3]
-                self.process_guess_result(word, team_type, turn)
+                self.process_enhanced_guess_result(word, team_type, turn)
         
         # Win conditions
         elif "GAME_END:" in clean or "Red Team Wins" in clean or "Blue Team Wins" in clean:
             if "Red" in clean:
-                self.add_log_entry("RED TEAM WINS!", "win")
+                win_text = "RED TEAM WINS!"
+                if self.tournament_running:
+                    win_text = f"Game {self.current_game_number}: {win_text}"
+                self.add_log_entry(win_text, "win")
                 self.turn_label.config(text="Red Team Wins!", fg="#C13A37")
             else:
-                self.add_log_entry("BLUE TEAM WINS!", "win")
+                win_text = "BLUE TEAM WINS!"
+                if self.tournament_running:
+                    win_text = f"Game {self.current_game_number}: {win_text}"
+                self.add_log_entry(win_text, "win")
                 self.turn_label.config(text="Blue Team Wins!", fg="#4989C5")
+            
+            # Collect game data if in tournament
+            if self.tournament_running:
+                self.collect_game_data()
         
         # Seed info
         elif "seed:" in clean.lower():
-            self.add_log_entry(f"ℹ️ {clean}", "debug")
+            seed_text = f"ℹ️ {clean}"
+            if self.tournament_running:
+                seed_text = f"Game {self.current_game_number}: {seed_text}"
+            self.add_log_entry(seed_text, "debug")
 
-    def process_guess_result(self, word, team_type, current_turn):
-        """Process guess result"""
+    def process_enhanced_guess_result(self, word, team_type, current_turn):
+        """FIXED: Enhanced guess result processing with proper score tracking"""
         word = word.upper()
         team_type = team_type.lower()
         is_correct = (team_type == "red" and "RED" in current_turn) or (team_type == "blue" and "BLUE" in current_turn)
         
-        # Determine result
+        # FIXED: Proper score tracking
         if team_type == "red":
             emoji = "✅" if is_correct else "❌"
             result = f"{'Correct' if is_correct else 'Wrong'}: {word} is a Red Card"
-            if is_correct:
+            if is_correct and "RED" in current_turn:  # FIXED: Only increment for correct team
                 self.red_words_found += 1
                 self.red_score.config(text=f"{self.red_words_found}/9")
         elif team_type == "blue":
             emoji = "✅" if is_correct else "❌"
             result = f"{'Correct' if is_correct else 'Wrong'}: {word} is a Blue Card"
-            if is_correct:
+            if is_correct and "BLUE" in current_turn:  # FIXED: Only increment for correct team
                 self.blue_words_found += 1
                 self.blue_score.config(text=f"{self.blue_words_found}/8")
         elif team_type == "civilian":
@@ -523,15 +613,39 @@ class CodenamesGUI:
         else:
             emoji = "❓"
             result = f"Unknown: {word}"
-        
         # Update display
         self.guess_label.config(text=f"{word} {emoji}")
         color = "red_guess" if "RED" in current_turn else "blue_guess"
-        self.add_log_entry(result, color)
+        
+        log_text = result
+        if self.tournament_running:
+            log_text = f"Game {self.current_game_number}: {result}"
+        
+        self.add_log_entry(log_text, color)
         
         # Update tile and tracking
         self.update_tile(word, team_type)
         self.guessed_words.add(word)
+    def collect_game_data(self):
+        """Collect data from completed game for tournament analysis"""
+        if not self.tournament_running:
+            return
+        
+        # Store current game data
+        game_data = {
+            'game_number': self.current_game_number,
+            'red_score': self.red_words_found,
+            'blue_score': self.blue_words_found,
+            'total_guesses': len(self.guessed_words),
+            'clues': self.current_game_clues.copy(),
+            'guesses': self.current_game_guesses.copy()
+        }
+        
+        # Add to tournament data
+        self.tournament_all_clues.extend(self.current_game_clues)
+        self.tournament_all_guesses.extend(self.current_game_guesses)
+        
+        self.add_log_entry(f"📊 Game {self.current_game_number} data collected", "debug")
     
     # ==================== BOARD MANAGEMENT ====================
     
@@ -587,7 +701,8 @@ class CodenamesGUI:
         
         self.board_initialized = True
         self.update_board_display()
-        self.add_log_entry("Game Started", "game_event")
+        if not self.tournament_running:
+            self.add_log_entry("Game Started", "game_event")
     
     def update_tile(self, word, team_type):
         """Update a specific tile"""
@@ -638,7 +753,10 @@ class CodenamesGUI:
         self.spymaster_mode = not self.spymaster_mode
         self.spymaster_button.config(text="Player View" if self.spymaster_mode else "Spymaster View")
         self.update_board_display()
-        self.add_log_entry(f"Switched to {'Spymaster' if self.spymaster_mode else 'Player'} View", "debug")
+        view_text = f"Switched to {'Spymaster' if self.spymaster_mode else 'Player'} View"
+        if self.tournament_running:
+            view_text = f"Game {self.current_game_number}: {view_text}"
+        self.add_log_entry(view_text, "debug")
     
     # ==================== UTILITY METHODS ====================
     
@@ -649,315 +767,248 @@ class CodenamesGUI:
         self.log_text.see(tk.END)
         self.log_text.config(state=tk.DISABLED)
     
-# ==================== TOURNAMENT METHODS ====================
-   
-    def open_tournament_settings(self):
-        """Open tournament settings window"""
-        if not TOURNAMENT_AVAILABLE:
-            messagebox.showerror("Tournament Unavailable", 
-                                "Tournament system not available.\nPlease check that all tournament files are present.")
+    # ==================== ENHANCED TOURNAMENT METHODS ====================
+    
+    def open_enhanced_tournament(self):
+        """Open enhanced tournament settings"""
+        if not ENHANCED_TOURNAMENT_AVAILABLE:
+            messagebox.showerror("Enhanced Tournament Unavailable", 
+                                "Enhanced tournament system not available.\nPlease check that all enhanced tournament files are present.")
             return
         
         if self.tournament_running:
             messagebox.showwarning("Tournament Running", 
-                                    "A tournament is already running. Please wait for it to complete.")
+                                  "A tournament is already running. Please wait for it to complete.")
             return
         
-        settings_window = TournamentSettingsWindow(self)
+        settings_window = EnhancedTournamentSettingsWindow(self)
         self.root.wait_window(settings_window.window)
         
         if settings_window.result:
-            self.start_tournament(settings_window.result)
+            self.start_enhanced_tournament(settings_window.result)
 
-    def start_tournament(self, config):
-        """Start tournament with given configuration"""
-        self.clear_tournament_clue_data()
+    def start_enhanced_tournament(self, config):
+        """Start enhanced tournament with believability analysis"""
+        self.clear_tournament_data()
         self.tournament_running = True
+        self.current_game_number = 0
         self.tournament_button.config(state=tk.DISABLED)
         
-        # Show progress window
-        self.tournament_progress_window = TournamentProgressWindow(self, config)
+        # Show enhanced progress window
+        self.tournament_progress_window = EnhancedTournamentProgressWindow(self, config)
         
         # Start tournament in background thread
-        self.tournament_thread = threading.Thread(target=self.run_tournament, args=(config,))
+        self.tournament_thread = threading.Thread(target=self.run_enhanced_tournament, args=(config,))
         self.tournament_thread.daemon = True
         self.tournament_thread.start()
         
-        self.add_log_entry("🏆 Tournament Started!", "tournament")
+        self.add_log_entry("🏆 Enhanced Tournament Started!", "tournament")
 
-    def run_tournament(self, config):
-        """Run tournament in background thread"""
+    def run_enhanced_tournament(self, config):
+        """Run enhanced tournament with comprehensive analysis"""
         try:
-            # Create tournament instance
-            tournament = BelievabilityTournament(
-                tournament_name=f"GUI_Tournament_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                games_per_matchup=config['games_per_matchup'],
-                progress_callback=self.update_tournament_progress
-            )
+            # Create appropriate tournament instance
+            if config.get('believability_analysis', False):
+                tournament = EnhancedBelievabilityTournament(
+                    tournament_name=f"GUI_Enhanced_Tournament_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                    games_per_matchup=config['games_per_matchup'],
+                    max_matchups=config.get('max_games', 200) // config['games_per_matchup']
+                )
+            else:
+                tournament = EnhancedTournamentManager(
+                    tournament_name=f"GUI_Performance_Tournament_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                    games_per_matchup=config['games_per_matchup'],
+                    max_matchups=config.get('max_games', 200) // config['games_per_matchup']
+                )
             
-            # Agent mapping
-            agent_map = {
-                'MCTS': {
-                    'codemaster': ('players.codemasterMCTS', 'CodemasterMCTS'),
-                    'guesser': ('players.guesser_MCTS', 'GuesserMCTS')
-                },
-                'EMD': {
-                    'codemaster': ('players.codemaster_EMD', 'CodemasterEmbeddings'),
-                    'guesser': ('players.guesserEMD', 'GuesserEmbeddings')
-                },
-                'SBERT': {
-                    'codemaster': ('players.codemaster_SBERT', 'CodemasterSBERT'),
-                    'guesser': ('players.guesser_SBERT', 'GuesserSBERT')
-                },
-                'CL': {
-                    'codemaster': ('players.codemaster_CL', 'CodemasterCurriculum'),
-                    'guesser': ('players.guesser_naive', 'NaiveGuesser')
-                },
-                'TOT': {
-                    'codemaster': ('players.codemaster_TOT', 'CodemasterTreeOfThoughts'),
-                    'guesser': ('players.guesser_naive', 'NaiveGuesser')
-                },
-                'Naive': {
-                    'codemaster': ('players.codemaster_CL', 'CodemasterCurriculum'),
-                    'guesser': ('players.guesser_naive', 'NaiveGuesser')
-                }
-            }
-            
-            # Register selected agents
-            registered_count = 0
-            for cm_code in config['codemasters']:
-                if cm_code in agent_map and agent_map[cm_code]['codemaster']:
-                    try:
-                        module_path, class_name = agent_map[cm_code]['codemaster']
-                        module = __import__(module_path, fromlist=[class_name])
-                        agent_class = getattr(module, class_name)
-                        tournament.register_agent(f"{cm_code}_CM", "codemaster", agent_class)
-                        registered_count += 1
-                        self.update_tournament_progress(f"Registered {cm_code} codemaster")
-                    except Exception as e:
-                        self.update_tournament_progress(f"Failed to register {cm_code} codemaster: {e}")
-            
-            for g_code in config['guessers']:
-                if g_code in agent_map and agent_map[g_code]['guesser']:
-                    try:
-                        module_path, class_name = agent_map[g_code]['guesser']
-                        module = __import__(module_path, fromlist=[class_name])
-                        agent_class = getattr(module, class_name)
-                        tournament.register_agent(f"{g_code}_Guesser", "guesser", agent_class)
-                        registered_count += 1
-                        self.update_tournament_progress(f"Registered {g_code} guesser")
-                    except Exception as e:
-                        self.update_tournament_progress(f"Failed to register {g_code} guesser: {e}")
-            
-            if registered_count < 3:
-                raise Exception("Not enough agents registered successfully")
+            # Agent registration
+            self.register_tournament_agents(tournament, config)
             
             # Calculate tournament size
             total_matchups = len(tournament.generate_matchups())
             total_games = total_matchups * config['games_per_matchup']
+            self.total_tournament_games = total_games
             
-            self.update_tournament_progress(f"Starting {total_games} games...")
+            self.update_tournament_progress(f"Starting {total_games} games with enhanced analysis...")
             
             # Run tournament with progress tracking
             games_completed = 0
             
-            def track_progress():
+            def track_enhanced_progress():
                 nonlocal games_completed
                 while self.tournament_running and games_completed < total_games:
                     current_completed = len(tournament.match_results)
                     if current_completed > games_completed:
-                        games_completed = current_completed                        
-                        # Update progress window - ADD SAFETY CHECKS
+                        games_completed = current_completed
+                        
+                        # Update progress window
                         if (self.tournament_progress_window and 
-                            hasattr(self.tournament_progress_window, 'cancelled') and 
                             not self.tournament_progress_window.cancelled):
-                            #
-                            if (self.tournament_progress_window and 
-                                not self.tournament_progress_window.cancelled):
-
-                                current_match = ""
-                                if tournament.match_results:
-                                    recent = tournament.match_results[-1]
-                                    current_match = (f"{recent.red_codemaster}+{recent.red_guesser} "
-                                                    f"vs {recent.blue_codemaster}+{recent.blue_guesser}")
-
-                                self.root.after(
-                                    0,
-                                    lambda c=games_completed,
-                                        t=total_games,
-                                        m=current_match:
-                                        self.tournament_progress_window.update_progress(c, t, m)
-                                )
                             
-                            # Add log entry for recent matches
+                            current_match = ""
                             if tournament.match_results:
-                                recent_match = tournament.match_results[-1]
-                                match_desc = f"{recent_match.red_codemaster}+{recent_match.red_guesser} vs {recent_match.blue_codemaster}+{recent_match.blue_guesser}"
-                                self.root.after(0, lambda: self.tournament_progress_window.add_log_entry(
-                                    f"Match {games_completed}: {match_desc} -> {recent_match.winner} wins"))
+                                recent = tournament.match_results[-1]
+                                current_match = (f"{recent.red_codemaster}+{recent.red_guesser} "
+                                               f"vs {recent.blue_codemaster}+{recent.blue_guesser}")
+                            
+                            self.root.after(0, lambda: self.tournament_progress_window.update_enhanced_progress(
+                                games_completed, total_games, current_match, "Playing Games"
+                            ))
                         
                         # Check for cancellation
                         if (self.tournament_progress_window and 
-                            hasattr(self.tournament_progress_window, 'cancelled') and 
                             self.tournament_progress_window.cancelled):
                             raise Exception("Tournament cancelled by user")
                     
                     time.sleep(1)
-
-            # Start progress tracking in a separate thread
-            progress_thread = threading.Thread(target=track_progress, daemon=True)
+            
+            # Start progress tracking
+            progress_thread = threading.Thread(target=track_enhanced_progress, daemon=True)
             progress_thread.start()
-
-            # Run tournament
-            tournament.run_tournament(shuffle_matchups=True)
             
-            # Generate results
-            if config['believability_analysis']:
-                tournament.calculate_team_believability_scores()
-                composite_rankings = tournament.generate_composite_rankings()
+            # Run the tournament
+            if config.get('believability_analysis', False):
+                results = tournament.run_tournament_with_believability(shuffle_matchups=True)
             else:
-                composite_rankings = [(team, stats, 0.5, stats.trueskill_rating.mu) 
-                                    for team, stats in tournament.get_rankings()]
-
-            # Generate agent rankings - ADD SAFETY CHECK
-            try:
-                agent_rankings = tournament.generate_agent_rankings()
-                print(f"DEBUG: Generated agent rankings: {len(agent_rankings)} agents")
-            except AttributeError as e:
-                print(f"DEBUG: generate_agent_rankings method not found: {e}")
-                agent_rankings = []
-            except Exception as e:
-                print(f"DEBUG: Error generating agent rankings: {e}")
-                agent_rankings = []
-
-            # Prepare results data - SINGLE VERSION
-            results_data = {
-                'tournament_name': tournament.tournament_name,
-                'total_games': len(tournament.match_results),
-                'believability_enabled': config['believability_analysis'],
-                'rankings': [],
-                'agent_rankings': []
-            }
-
-            print(f"DEBUG: Processing {len(composite_rankings)} team rankings")
-
-            # Process team rankings
-            for team, stats, believability, composite in composite_rankings:
-                win_rate = stats.wins / max(1, stats.total_games)
-                results_data['rankings'].append({
-                    'team': team,
-                    'wins': stats.wins,
-                    'losses': stats.losses,
-                    'win_rate': win_rate,
-                    'trueskill': stats.trueskill_rating.mu,
-                    'believability': believability,
-                    'composite_score': composite
-                })
-
-            print(f"DEBUG: Processing {len(agent_rankings)} agent rankings")
-
-            # Process agent rankings
-            for agent_name, agent_stats in agent_rankings:
-                results_data['agent_rankings'].append({
-                    'name': agent_name,
-                    'type': agent_stats['agent_type'],
-                    'wins': agent_stats['wins'],
-                    'losses': agent_stats['losses'],
-                    'games': agent_stats['games'],
-                    'win_rate': agent_stats['win_rate'],
-                    'believability': agent_stats['believability'],
-                    'teams_played': agent_stats['teams_played']
-                })
-
-            # Process believability data if enabled
-            if config['believability_analysis']:
-                results_data['believability_data'] = []
-                print("DEBUG: Processing believability data")
-                # Generate believability data for codemasters
-                for agent_name, agent_stats in agent_rankings:
-                    if agent_stats['agent_type'] == 'codemaster':
-                        believability = agent_stats['believability']
-                        results_data['believability_data'].append({
-                            'agent_name': agent_name,
-                            'agent_type': agent_stats['agent_type'],
-                            'overall_believability': believability,
-                            'frequency_score': believability * 0.8 + 0.1,
-                            'semantic_coherence': believability * 1.1,
-                            'human_likeness': believability * 0.9 + 0.05
-                        })
-                print(f"DEBUG: Generated {len(results_data['believability_data'])} believability entries")
-            
-            print(f"DEBUG: Final results_data keys: {results_data.keys()}")
-            print(f"DEBUG: Team rankings: {len(results_data['rankings'])}")
-            print(f"DEBUG: Agent rankings: {len(results_data['agent_rankings'])}")
+                results = tournament.run_tournament(shuffle_matchups=True)
             
             # Show results
-            self.root.after(0, lambda: self.show_tournament_results(results_data))
+            self.root.after(0, lambda: self.show_enhanced_tournament_results(results))
             
         except Exception as e:
-            error_msg = f"Tournament error: {str(e)}"
+            error_msg = f"Enhanced tournament error: {str(e)}"
             print(f"DEBUG: {error_msg}")
             if self.tournament_progress_window:
-                self.root.after(0, lambda: self.tournament_progress_window.add_log_entry(error_msg))
+                self.root.after(0, lambda: self.tournament_progress_window.add_analysis_log(error_msg, "Error"))
             self.root.after(0, lambda: messagebox.showerror("Tournament Error", error_msg))
         
         finally:
-            # Clean up
-            self.root.after(0, self.tournament_finished)
+            self.root.after(0, self.enhanced_tournament_finished)
+
+    def register_tournament_agents(self, tournament, config):
+        """Register agents for enhanced tournament"""
+        # Agent mapping
+        agent_map = {
+            'MCTS': {
+                'codemaster': ('players.codemasterMCTS', 'CodemasterMCTS'),
+                'guesser': ('players.guesser_MCTS', 'GuesserMCTS')
+            },
+            'EMD': {
+                'codemaster': ('players.codemaster_EMD', 'CodemasterEmbeddings'),
+                'guesser': ('players.guesserEMD', 'GuesserEmbeddings')
+            },
+            'SBERT': {
+                'codemaster': ('players.codemaster_SBERT', 'CodemasterSBERT'),
+                'guesser': ('players.guesser_SBERT', 'GuesserSBERT')
+            },
+            'CL': {
+                'codemaster': ('players.codemaster_CL', 'CodemasterCurriculum'),
+                'guesser': ('players.guesser_naive', 'NaiveGuesser')
+            },
+            'TOT': {
+                'codemaster': ('players.codemaster_TOT', 'CodemasterTreeOfThoughts'),
+                'guesser': ('players.guesser_naive', 'NaiveGuesser')
+            },
+            'Naive': {
+                'codemaster': ('players.codemaster_CL', 'CodemasterCurriculum'),
+                'guesser': ('players.guesser_naive', 'NaiveGuesser')
+            }
+        }
+        
+        registered_count = 0
+        
+        # Register codemasters
+        for cm_code in config['codemasters']:
+            if cm_code in agent_map and agent_map[cm_code]['codemaster']:
+                try:
+                    module_path, class_name = agent_map[cm_code]['codemaster']
+                    module = __import__(module_path, fromlist=[class_name])
+                    agent_class = getattr(module, class_name)
+                    tournament.register_agent(f"{cm_code}_CM", "codemaster", agent_class)
+                    registered_count += 1
+                    self.update_tournament_progress(f"Registered {cm_code} codemaster")
+                except Exception as e:
+                    self.update_tournament_progress(f"Failed to register {cm_code} codemaster: {e}")
+        
+        # Register guessers
+        for g_code in config['guessers']:
+            if g_code in agent_map and agent_map[g_code]['guesser']:
+                try:
+                    module_path, class_name = agent_map[g_code]['guesser']
+                    module = __import__(module_path, fromlist=[class_name])
+                    agent_class = getattr(module, class_name)
+                    tournament.register_agent(f"{g_code}_Guesser", "guesser", agent_class)
+                    registered_count += 1
+                    self.update_tournament_progress(f"Registered {g_code} guesser")
+                except Exception as e:
+                    self.update_tournament_progress(f"Failed to register {g_code} guesser: {e}")
+        
+        return registered_count
+
     def update_tournament_progress(self, message):
         """Update tournament progress (called from background thread)"""
         if self.tournament_progress_window:
-            self.root.after(0, lambda: self.tournament_progress_window.add_log_entry(message))
+            self.root.after(0, lambda: self.tournament_progress_window.add_analysis_log(message, "Info"))
 
-    def show_tournament_results(self, results_data):
-        """Show tournament results window"""
+    def show_enhanced_tournament_results(self, results):
+        """Show enhanced tournament results window"""
         if self.tournament_progress_window:
             self.tournament_progress_window.close()
         
-        TournamentResultsWindow(self, results_data)
+        EnhancedTournamentResultsWindow(self, results)
         
         # Add summary to main log
-        self.add_log_entry("🏆 Tournament Completed!", "tournament")
-        self.add_log_entry(f"Total games: {results_data['total_games']}", "tournament")
-        if results_data['rankings']:
-            winner = results_data['rankings'][0]
-            self.add_log_entry(f"Winner: {winner['team']} ({winner['win_rate']:.1%} win rate)", "tournament")
+        self.add_log_entry("🏆 Enhanced Tournament Completed!", "tournament")
+        self.add_log_entry(f"Total games: {results.total_games}", "tournament")
+        
+        if hasattr(results, 'team_rankings') and results.team_rankings:
+            winner = results.team_rankings[0]
+            team_name = winner[0] if isinstance(winner, tuple) else str(winner)
+            self.add_log_entry(f"Winner: {team_name}", "tournament")
+        
+        # Show believability summary if available
+        if hasattr(results, 'believability_analysis') and results.believability_analysis:
+            analysis = results.believability_analysis
+            if 'top_believable_codemasters' in analysis:
+                top_believable = analysis['top_believable_codemasters']
+                if top_believable:
+                    top_name, top_score = top_believable[0]
+                    self.add_log_entry(f"Most Believable: {top_name} ({top_score:.3f})", "tournament")
 
-    def tournament_finished(self):
-        """Clean up after tournament finishes"""
+    def clear_tournament_data(self):
+        """Clear all tournament data for fresh start"""
+        self.tournament_all_clues = []
+        self.tournament_all_guesses = []
+        self.current_game_clues = []
+        self.current_game_guesses = []
+        self.current_game_number = 0
+        self.total_tournament_games = 0
+        self.agent_performance_tracker = {}
+
+    def enhanced_tournament_finished(self):
+        """Clean up after enhanced tournament finishes"""
         self.tournament_running = False
         self.tournament_button.config(state=tk.NORMAL)
         self.tournament_thread = None
+        self.current_game_number = 0
         
         if self.tournament_progress_window:
             self.tournament_progress_window.close()
             self.tournament_progress_window = None
+        
+        self.add_log_entry("🏆 Enhanced Tournament Completed!", "tournament")
 
-    def clear_tournament_clue_data(self):
-        """Clear stored clue data (call at start of new tournament)"""
-        self.tournament_clues = []
+# ==================== ENHANCED TOURNAMENT SETTINGS WINDOW ====================
 
-    def get_tournament_clue_data(self):
-        """Return collected clue data for believability analysis"""
-        if hasattr(self, 'tournament_clues'):
-            return self.tournament_clues.copy()
-        return []
-
-    def open_tournament(self):
-        """Open tournament settings - calls the main tournament method"""
-        self.open_tournament_settings()
-
-
-# Tournament Window Classes (need to be added before the main class)
-class TournamentSettingsWindow:
+class EnhancedTournamentSettingsWindow:
     def __init__(self, parent):
         self.parent = parent
         self.result = None
         
         # Create modal window
         self.window = tk.Toplevel(parent.root)
-        self.window.title("Tournament Settings")
-        self.window.geometry("600x750")
+        self.window.title("Enhanced Tournament Settings")
+        self.window.geometry("700x800")
         self.window.configure(bg="#242731")
         self.window.transient(parent.root)
         self.window.grab_set()
@@ -969,15 +1020,15 @@ class TournamentSettingsWindow:
         ))
         
         self.create_widgets()
-        
+    
     def create_widgets(self):
         # Main frame
         main_frame = tk.Frame(self.window, bg="#242731")
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
         # Title
-        title_label = tk.Label(main_frame, text="Tournament Configuration", 
-                              font=font.Font(family="Helvetica", size=18, weight="bold"),
+        title_label = tk.Label(main_frame, text="Enhanced Tournament Configuration", 
+                              font=("Helvetica", 18, "bold"),
                               bg="#242731", fg="#E7E1BD")
         title_label.pack(pady=(0, 20))
         
@@ -985,19 +1036,22 @@ class TournamentSettingsWindow:
         notebook = ttk.Notebook(main_frame)
         notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
         
+        # Tournament Type Tab
+        type_frame = tk.Frame(notebook, bg="#242731")
+        notebook.add(type_frame, text="Tournament Type")
+        
         # Agent Selection Tab
         agent_frame = tk.Frame(notebook, bg="#242731")
         notebook.add(agent_frame, text="Agent Selection")
         
-        # Tournament Settings Tab
+        # Enhanced Settings Tab
         settings_frame = tk.Frame(notebook, bg="#242731")
-        notebook.add(settings_frame, text="Tournament Settings")
+        notebook.add(settings_frame, text="Enhanced Settings")
         
-        # === AGENT SELECTION TAB ===
-        self.setup_agent_selection(agent_frame)
-        
-        # === TOURNAMENT SETTINGS TAB ===
-        self.setup_tournament_settings(settings_frame)
+        # Setup tabs
+        self.setup_tournament_type_tab(type_frame)
+        self.setup_agent_selection_tab(agent_frame)
+        self.setup_enhanced_settings_tab(settings_frame)
         
         # Button frame
         button_frame = tk.Frame(main_frame, bg="#242731")
@@ -1005,20 +1059,84 @@ class TournamentSettingsWindow:
         
         # Cancel button
         cancel_btn = tk.Button(button_frame, text="Cancel", command=self.cancel,
-                              font=font.Font(family="Helvetica", size=12),
+                              font=("Helvetica", 12),
                               bg="#F44336", fg="white", relief=tk.FLAT, bd=0, 
                               padx=20, pady=8)
         cancel_btn.pack(side=tk.RIGHT, padx=(10, 0))
         
         # Start tournament button
-        start_btn = tk.Button(button_frame, text="Start Tournament", command=self.start_tournament,
-                             font=font.Font(family="Helvetica", size=12, weight="bold"),
+        start_btn = tk.Button(button_frame, text="Start Enhanced Tournament", command=self.start_tournament,
+                             font=("Helvetica", 12, "bold"),
                              bg="#4CAF50", fg="black", relief=tk.FLAT, bd=0, 
                              padx=20, pady=8)
         start_btn.pack(side=tk.RIGHT)
+    
+    def setup_tournament_type_tab(self, parent):
+        """Setup tournament type selection"""
+        # Tournament type selection
+        type_label = tk.Label(parent, text="Tournament Type:", 
+                             font=("Helvetica", 14, "bold"),
+                             bg="#242731", fg="#E7E1BD")
+        type_label.pack(anchor=tk.W, pady=(20, 10), padx=20)
         
-    def setup_agent_selection(self, parent):
-        # Create scrollable frame for agent selection
+        self.tournament_type = tk.StringVar(value="performance")
+        
+        performance_rb = tk.Radiobutton(parent, text="Performance Tournament", 
+                                       variable=self.tournament_type, value="performance",
+                                       font=("Helvetica", 12),
+                                       bg="#242731", fg="#E7E1BD", selectcolor="#242731",
+                                       activebackground="#242731", activeforeground="#E7E1BD",
+                                       command=self.update_tournament_info)
+        performance_rb.pack(anchor=tk.W, pady=5, padx=40)
+        
+        perf_desc = tk.Label(parent, text="Focus on win rates, TrueSkill ratings, and performance metrics",
+                            font=("Helvetica", 10), bg="#242731", fg="#BDC3C7",
+                            wraplength=600, justify=tk.LEFT)
+        perf_desc.pack(anchor=tk.W, pady=(0, 10), padx=60)
+        
+        believability_rb = tk.Radiobutton(parent, text="Believability Tournament", 
+                                         variable=self.tournament_type, value="believability",
+                                         font=("Helvetica", 12),
+                                         bg="#242731", fg="#E7E1BD", selectcolor="#242731",
+                                         activebackground="#242731", activeforeground="#E7E1BD",
+                                         command=self.update_tournament_info)
+        believability_rb.pack(anchor=tk.W, pady=5, padx=40)
+        
+        believe_desc = tk.Label(parent, text="Analyze clue quality, human-likeness, and semantic coherence",
+                               font=("Helvetica", 10), bg="#242731", fg="#BDC3C7",
+                               wraplength=600, justify=tk.LEFT)
+        believe_desc.pack(anchor=tk.W, pady=(0, 10), padx=60)
+        
+        # Games per matchup
+        games_label = tk.Label(parent, text="Games per Matchup:", 
+                              font=("Helvetica", 12, "bold"),
+                              bg="#242731", fg="#E7E1BD")
+        games_label.pack(anchor=tk.W, pady=(20, 5), padx=20)
+        
+        self.games_var = tk.IntVar(value=2)
+        games_scale = tk.Scale(parent, from_=1, to=10, orient=tk.HORIZONTAL,
+                              variable=self.games_var, bg="#242731", fg="#E7E1BD",
+                              highlightbackground="#242731", troughcolor="#34495E",
+                              font=("Helvetica", 10), command=lambda x: self.update_tournament_info())
+        games_scale.pack(fill=tk.X, pady=5, padx=40)
+        
+        # Tournament info
+        info_frame = tk.Frame(parent, bg="#242731", bd=1, relief=tk.GROOVE)
+        info_frame.pack(fill=tk.X, pady=20, padx=20)
+        
+        info_label = tk.Label(info_frame, text="Tournament Information:", 
+                             font=("Helvetica", 12, "bold"),
+                             bg="#242731", fg="#E7E1BD")
+        info_label.pack(anchor=tk.W, padx=10, pady=5)
+        
+        self.info_text = tk.Label(info_frame, text="Configure settings to see tournament details",
+                                 font=("Helvetica", 10),
+                                 bg="#242731", fg="#BDC3C7", wraplength=600, justify=tk.LEFT)
+        self.info_text.pack(anchor=tk.W, padx=10, pady=(5, 10))
+    
+    def setup_agent_selection_tab(self, parent):
+        """Setup agent selection"""
+        # Create scrollable frame
         canvas = tk.Canvas(parent, bg="#242731")
         scrollbar = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
         scrollable_frame = tk.Frame(canvas, bg="#242731")
@@ -1033,7 +1151,7 @@ class TournamentSettingsWindow:
         
         # Codemaster section
         cm_label = tk.Label(scrollable_frame, text="Codemasters", 
-                           font=font.Font(family="Helvetica", size=14, weight="bold"),
+                           font=("Helvetica", 14, "bold"),
                            bg="#242731", fg="#E7E1BD")
         cm_label.pack(anchor=tk.W, pady=(10, 5))
         
@@ -1054,23 +1172,24 @@ class TournamentSettingsWindow:
             frame.pack(fill=tk.X, padx=20, pady=2)
             
             cb = tk.Checkbutton(frame, text=f"{name} ({code})", variable=var,
-                               font=font.Font(family="Helvetica", size=11),
+                               font=("Helvetica", 11),
                                bg="#242731", fg="#C13A37", selectcolor="#242731",
-                               activebackground="#242731", activeforeground="#C13A37")
+                               activebackground="#242731", activeforeground="#C13A37",
+                               command=self.update_tournament_info)
             cb.pack(anchor=tk.W)
         
         # Guesser section
         g_label = tk.Label(scrollable_frame, text="Guessers", 
-                          font=font.Font(family="Helvetica", size=14, weight="bold"),
+                          font=("Helvetica", 14, "bold"),
                           bg="#242731", fg="#E7E1BD")
         g_label.pack(anchor=tk.W, pady=(20, 5))
         
         self.guesser_vars = {}
         guessers = [
             ("EMD", "Word Embeddings", True),
-            ("Naive", "Simple Embeddings", False),
+            ("MCTS", "Monte Carlo Tree Search", True),
             ("SBERT", "Sentence Transformers", False),
-            ("MCTS", "Monte Carlo Tree Search", True)
+            ("Naive", "Simple Embeddings", False)
         ]
         
         for code, name, default in guessers:
@@ -1081,112 +1200,46 @@ class TournamentSettingsWindow:
             frame.pack(fill=tk.X, padx=20, pady=2)
             
             cb = tk.Checkbutton(frame, text=f"{name} ({code})", variable=var,
-                               font=font.Font(family="Helvetica", size=11),
+                               font=("Helvetica", 11),
                                bg="#242731", fg="#4989C5", selectcolor="#242731",
-                               activebackground="#242731", activeforeground="#4989C5")
+                               activebackground="#242731", activeforeground="#4989C5",
+                               command=self.update_tournament_info)
             cb.pack(anchor=tk.W)
-        
-        # Quick selection buttons
-        quick_frame = tk.Frame(scrollable_frame, bg="#242731")
-        quick_frame.pack(fill=tk.X, pady=(20, 10))
-        
-        all_btn = tk.Button(quick_frame, text="Select All", command=self.select_all_agents,
-                           font=font.Font(family="Helvetica", size=10),
-                           bg="#FF9800", fg="black", relief=tk.FLAT, bd=0, padx=15, pady=5)
-        all_btn.pack(side=tk.LEFT, padx=(20, 5))
-        
-        none_btn = tk.Button(quick_frame, text="Select None", command=self.select_no_agents,
-                            font=font.Font(family="Helvetica", size=10),
-                            bg="#9E9E9E", fg="black", relief=tk.FLAT, bd=0, padx=15, pady=5)
-        none_btn.pack(side=tk.LEFT, padx=5)
-        
-        default_btn = tk.Button(quick_frame, text="Default Selection", command=self.select_default_agents,
-                               font=font.Font(family="Helvetica", size=10),
-                               bg="#673AB7", fg="black", relief=tk.FLAT, bd=0, padx=15, pady=5)
-        default_btn.pack(side=tk.LEFT, padx=5)
         
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
-        
-    def setup_tournament_settings(self, parent):
-        # Games per matchup
-        games_frame = tk.Frame(parent, bg="#242731")
-        games_frame.pack(fill=tk.X, pady=10, padx=20)
-        
-        games_label = tk.Label(games_frame, text="Games per Matchup:", 
-                              font=font.Font(family="Helvetica", size=12, weight="bold"),
-                              bg="#242731", fg="#E7E1BD")
-        games_label.pack(anchor=tk.W)
-        
-        self.games_var = tk.IntVar(value=1)
-        games_scale = tk.Scale(games_frame, from_=1, to=25, orient=tk.HORIZONTAL,
-                              variable=self.games_var, bg="#242731", fg="#E7E1BD",
-                              highlightbackground="#242731", troughcolor="#34495E",
-                              font=font.Font(family="Helvetica", size=10))
-        games_scale.pack(fill=tk.X, pady=5)
-        
-        # Tournament type
-        type_frame = tk.Frame(parent, bg="#242731")
-        type_frame.pack(fill=tk.X, pady=10, padx=20)
-        
-        type_label = tk.Label(type_frame, text="Tournament Type:", 
-                             font=font.Font(family="Helvetica", size=12, weight="bold"),
-                             bg="#242731", fg="#E7E1BD")
-        type_label.pack(anchor=tk.W)
-        
-        self.tournament_type = tk.StringVar(value="focused")
-        
-        focused_rb = tk.Radiobutton(type_frame, text="Focused Test (Recommended - 50-200 games)", 
-                                   variable=self.tournament_type, value="focused",
-                                   font=font.Font(family="Helvetica", size=11),
-                                   bg="#242731", fg="#E7E1BD", selectcolor="#242731",
-                                   activebackground="#242731", activeforeground="#E7E1BD")
-        focused_rb.pack(anchor=tk.W, pady=2)
-        
-        full_rb = tk.Radiobutton(type_frame, text="Full Tournament (All vs All - 500+ games)", 
-                                variable=self.tournament_type, value="full",
-                                font=font.Font(family="Helvetica", size=11),
-                                bg="#242731", fg="#E7E1BD", selectcolor="#242731",
-                                activebackground="#242731", activeforeground="#E7E1BD")
-        full_rb.pack(anchor=tk.W, pady=2)
-        
-        # Believability analysis
-        believe_frame = tk.Frame(parent, bg="#242731")
+    
+    def setup_enhanced_settings_tab(self, parent):
+        """Setup enhanced tournament settings"""
+        # Believability Analysis Settings
+        believe_frame = tk.LabelFrame(parent, text="Believability Analysis", 
+                                     font=("Helvetica", 12, "bold"),
+                                     bg="#242731", fg="#F1C40F")
         believe_frame.pack(fill=tk.X, pady=10, padx=20)
         
-        self.believability_var = tk.BooleanVar(value=True)
+        self.believability_enabled = tk.BooleanVar(value=True)
         believe_cb = tk.Checkbutton(believe_frame, text="Enable Believability Analysis", 
-                                   variable=self.believability_var,
-                                   font=font.Font(family="Helvetica", size=12, weight="bold"),
+                                   variable=self.believability_enabled,
+                                   font=("Helvetica", 12),
                                    bg="#242731", fg="#F1C40F", selectcolor="#242731",
                                    activebackground="#242731", activeforeground="#F1C40F")
-        believe_cb.pack(anchor=tk.W)
+        believe_cb.pack(anchor=tk.W, padx=10, pady=5)
         
-        believe_desc = tk.Label(believe_frame, 
-                               text="Analyzes clue quality and human-likeness using semantic similarity",
-                               font=font.Font(family="Helvetica", size=10),
-                               bg="#242731", fg="#BDC3C7", wraplength=400, justify=tk.LEFT)
-        believe_desc.pack(anchor=tk.W, pady=(5, 0))
+        # Tournament Size Settings
+        size_frame = tk.LabelFrame(parent, text="Tournament Size", 
+                                  font=("Helvetica", 12, "bold"),
+                                  bg="#242731", fg="#E7E1BD")
+        size_frame.pack(fill=tk.X, pady=10, padx=20)
         
-        # Tournament info
-        info_frame = tk.Frame(parent, bg="#242731")
-        info_frame.pack(fill=tk.X, pady=20, padx=20)
+        self.tournament_size = tk.StringVar(value="medium")
         
-        info_label = tk.Label(info_frame, text="Tournament Information:", 
-                             font=font.Font(family="Helvetica", size=12, weight="bold"),
-                             bg="#242731", fg="#E7E1BD")
-        info_label.pack(anchor=tk.W)
-        
-        self.info_text = tk.Label(info_frame, text="Select agents to see tournament details",
-                                 font=font.Font(family="Helvetica", size=10),
-                                 bg="#242731", fg="#BDC3C7", wraplength=500, justify=tk.LEFT)
-        self.info_text.pack(anchor=tk.W, pady=(5, 0))
-        
-        # Update info when settings change
-        self.games_var.trace('w', self.update_tournament_info)
-        self.tournament_type.trace('w', self.update_tournament_info)
-        
-    def update_tournament_info(self, *args):
+        tk.Radiobutton(size_frame, text="Medium (≤200 games)", variable=self.tournament_size, value="medium",
+                      bg="#242731", fg="#E7E1BD", selectcolor="#242731").pack(anchor=tk.W, padx=10, pady=2)
+        tk.Radiobutton(size_frame, text="Large (≤500 games)", variable=self.tournament_size, value="large",
+                      bg="#242731", fg="#E7E1BD", selectcolor="#242731").pack(anchor=tk.W, padx=10, pady=2)
+    
+    def update_tournament_info(self):
+        """Update tournament information display"""
         # Count selected agents
         cm_count = sum(var.get() for var in self.codemaster_vars.values())
         g_count = sum(var.get() for var in self.guesser_vars.values())
@@ -1198,274 +1251,34 @@ class TournamentSettingsWindow:
         games_per_matchup = self.games_var.get()
         total_teams = cm_count * g_count
         
-        if self.tournament_type.get() == "full":
-            # Full tournament: each team plays every other team
-            total_matchups = total_teams * (total_teams - 1)
-        else:
-            # Focused: more reasonable number of matchups
-            total_matchups = min(total_teams * (total_teams - 1), 50)
+        # Estimate matchups based on tournament size
+        size_limits = {"small": 50, "medium": 200, "large": 500}
+        max_games = size_limits.get(self.tournament_size.get(), 200)
+        max_matchups = max_games // games_per_matchup
         
+        total_matchups = min(total_teams * (total_teams - 1), max_matchups)
         total_games = total_matchups * games_per_matchup
         
+        tournament_type = self.tournament_type.get()
+        analysis_overhead = 1.5 if tournament_type == "believability" else 1.0
+        estimated_time = total_games * 0.5 * analysis_overhead / 60
+        
         info_text = f"""Tournament Details:
+• Type: {tournament_type.title()} Tournament
 • {cm_count} codemasters, {g_count} guessers selected
 • {total_teams} total teams
 • {total_matchups} unique matchups
 • {games_per_matchup} games per matchup
 • {total_games} total games
-• Estimated time: {self.estimate_time(total_games)}"""
+• Estimated time: {estimated_time:.1f} minutes"""
+        
+        if tournament_type == "believability":
+            info_text += "\n• Includes believability analysis"
         
         self.info_text.config(text=info_text)
     
-    def estimate_time(self, total_games):
-        # Rough estimate: 30-45 seconds per game
-        avg_seconds = 37
-        total_seconds = total_games * avg_seconds
-        
-        if total_seconds < 60:
-            return f"{total_seconds:.0f} seconds"
-        elif total_seconds < 3600:
-            return f"{total_seconds/60:.1f} minutes"
-        else:
-            return f"{total_seconds/3600:.1f} hours"
-    
-    def select_all_agents(self):
-        for var in self.codemaster_vars.values():
-            var.set(True)
-        for var in self.guesser_vars.values():
-            var.set(True)
-        self.update_tournament_info()
-    def setup_believability_tab(self, parent):
-        """Setup believability analysis tab"""
-        # Create frame for believability analysis
-        believe_frame = tk.Frame(parent, bg="#242731")
-        believe_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Believability rankings
-        believe_label = tk.Label(believe_frame, text="Clue Believability Analysis", 
-                                font=("Helvetica", 14, "bold"),
-                                bg="#242731", fg="#F1C40F")
-        believe_label.pack(pady=(0, 10))
-        
-        # Create treeview for believability
-        b_columns = ("Rank", "Agent", "Type", "Believability", "Frequency", "Coherence", "Human-like")
-        b_tree = ttk.Treeview(believe_frame, columns=b_columns, show="headings", height=15)
-        
-        for col in b_columns:
-            b_tree.heading(col, text=col)
-            b_tree.column(col, width=100, anchor=tk.CENTER)
-        
-        # Add scrollbar
-        b_scrollbar = ttk.Scrollbar(believe_frame, orient=tk.VERTICAL, command=b_tree.yview)
-        b_tree.configure(yscrollcommand=b_scrollbar.set)
-        
-        # Pack widgets
-        b_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
-        b_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        # Populate with believability data
-        if 'believability_data' in self.results_data:
-            for i, data in enumerate(self.results_data['believability_data'], 1):
-                b_tree.insert("", tk.END, values=(
-                    i,
-                    data.get('agent_name', 'Unknown'),
-                    data.get('agent_type', 'Unknown'),
-                    f"{data.get('overall_believability', 0):.3f}",
-                    f"{data.get('frequency_score', 0):.3f}",
-                    f"{data.get('semantic_coherence', 0):.3f}",
-                    f"{data.get('human_likeness', 0):.3f}"
-                ))   
-    def setup_rankings_tab(self, parent):
-        """Setup rankings tab with agent-wise rankings"""
-        # Create notebook for different ranking views
-        ranking_notebook = ttk.Notebook(parent)
-        ranking_notebook.pack(fill=tk.BOTH, expand=True)
-        
-        # Team rankings tab
-        team_frame = tk.Frame(ranking_notebook, bg="#242731")
-        ranking_notebook.add(team_frame, text="Team Rankings")
-        
-        # Agent rankings tab
-        agent_frame = tk.Frame(ranking_notebook, bg="#242731")
-        ranking_notebook.add(agent_frame, text="Agent Rankings")
-        
-        # Setup team rankings (existing code)
-        self.setup_team_rankings(team_frame)
-        
-        # Setup agent rankings (new)
-        self.setup_agent_rankings(agent_frame)
-    def setup_team_rankings(self, parent):
-        """Setup team rankings table"""
-        columns = ("Rank", "Team", "Win Rate", "W-L", "TrueSkill", "Composite")
-        tree = ttk.Treeview(parent, columns=columns, show="headings", height=20)
-        
-        # Configure columns
-        for col in columns:
-            tree.heading(col, text=col)
-        
-        tree.column("Rank", width=60, anchor=tk.CENTER)
-        tree.column("Team", width=200, anchor=tk.W)
-        tree.column("Win Rate", width=80, anchor=tk.CENTER)
-        tree.column("W-L", width=80, anchor=tk.CENTER)
-        tree.column("TrueSkill", width=100, anchor=tk.CENTER)
-        tree.column("Composite", width=100, anchor=tk.CENTER)
-        
-        # Add scrollbar
-        scrollbar = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=tree.yview)
-        tree.configure(yscrollcommand=scrollbar.set)
-        
-        # Pack widgets
-        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        # Populate with team data
-        if 'rankings' in self.results_data:
-            for i, ranking in enumerate(self.results_data['rankings'], 1):
-                win_rate = ranking.get('win_rate', 0)
-                wins = ranking.get('wins', 0)
-                losses = ranking.get('losses', 0)
-                trueskill = ranking.get('trueskill', 0)
-                composite = ranking.get('composite_score', 0)
-                
-                tree.insert("", tk.END, values=(
-                    i,
-                    ranking.get('team', 'Unknown'),
-                    f"{win_rate:.1%}",
-                    f"{wins}-{losses}",
-                    f"{trueskill:.1f}",
-                    f"{composite:.3f}"
-                ))
-
-    def setup_agent_rankings(self, parent):
-        """Setup agent rankings with separate tabs for codemasters and guessers"""
-        # Create notebook for agent types
-        agent_notebook = ttk.Notebook(parent)
-        agent_notebook.pack(fill=tk.BOTH, expand=True)
-        
-        # Codemasters tab
-        cm_frame = tk.Frame(agent_notebook, bg="#242731")
-        agent_notebook.add(cm_frame, text="Codemasters")
-        
-        # Guessers tab
-        g_frame = tk.Frame(agent_notebook, bg="#242731")
-        agent_notebook.add(g_frame, text="Guessers")
-        
-        # Overall tab
-        overall_frame = tk.Frame(agent_notebook, bg="#242731")
-        agent_notebook.add(overall_frame, text="All Agents")
-        
-        # Setup each tab
-        self.setup_agent_ranking_table(cm_frame, "codemaster")
-        self.setup_agent_ranking_table(g_frame, "guesser")
-        self.setup_agent_ranking_table(overall_frame, "all")
-
-    def setup_agent_ranking_table(self, parent, agent_type):
-        """Setup ranking table for specific agent type"""
-        columns = ("Rank", "Agent", "Win Rate", "W-L", "Games", "Teams", "Believability")
-        tree = ttk.Treeview(parent, columns=columns, show="headings", height=20)
-        
-        # Configure columns
-        for col in columns:
-            tree.heading(col, text=col)
-        
-        tree.column("Rank", width=50, anchor=tk.CENTER)
-        tree.column("Agent", width=150, anchor=tk.W)
-        tree.column("Win Rate", width=80, anchor=tk.CENTER)
-        tree.column("W-L", width=80, anchor=tk.CENTER)
-        tree.column("Games", width=60, anchor=tk.CENTER)
-        tree.column("Teams", width=60, anchor=tk.CENTER)
-        tree.column("Believability", width=100, anchor=tk.CENTER)
-        
-        # Add scrollbar
-        scrollbar = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=tree.yview)
-        tree.configure(yscrollcommand=scrollbar.set)
-        
-        # Pack widgets
-        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        # Populate with agent data
-        if 'agent_rankings' in self.results_data:
-            filtered_agents = []
-            for agent_data in self.results_data['agent_rankings']:
-                if agent_type == "all" or agent_data.get('type') == agent_type:
-                    filtered_agents.append(agent_data)
-            
-            for i, agent_data in enumerate(filtered_agents, 1):
-                tree.insert("", tk.END, values=(
-                    i,
-                    agent_data.get('name', 'Unknown'),
-                    f"{agent_data.get('win_rate', 0):.1%}",
-                    f"{agent_data.get('wins', 0)}-{agent_data.get('losses', 0)}",
-                    agent_data.get('games', 0),
-                    len(agent_data.get('teams_played', [])),
-                    f"{agent_data.get('believability', 0.5):.3f}"
-                ))
-
-
-    def setup_agent_ranking_table(self, parent, agent_type):
-        """Setup ranking table for specific agent type"""
-        columns = ("Rank", "Agent", "Win Rate", "W-L", "Games", "Teams", "Believability")
-        tree = ttk.Treeview(parent, columns=columns, show="headings", height=20)
-        
-        # Configure columns
-        for col in columns:
-            tree.heading(col, text=col)
-        
-        tree.column("Rank", width=50, anchor=tk.CENTER)
-        tree.column("Agent", width=150, anchor=tk.W)
-        tree.column("Win Rate", width=80, anchor=tk.CENTER)
-        tree.column("W-L", width=80, anchor=tk.CENTER)
-        tree.column("Games", width=60, anchor=tk.CENTER)
-        tree.column("Teams", width=60, anchor=tk.CENTER)
-        tree.column("Believability", width=100, anchor=tk.CENTER)
-        
-        # Add scrollbar
-        scrollbar = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=tree.yview)
-        tree.configure(yscrollcommand=scrollbar.set)
-        
-        # Pack widgets
-        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        # Populate with agent data
-        if 'agent_rankings' in self.results_data:
-            filtered_agents = []
-            for agent_data in self.results_data['agent_rankings']:
-                if agent_type == "all" or agent_data.get('type') == agent_type:
-                    filtered_agents.append(agent_data)
-            
-            for i, agent_data in enumerate(filtered_agents, 1):
-                tree.insert("", tk.END, values=(
-                    i,
-                    agent_data.get('name', 'Unknown'),
-                    f"{agent_data.get('win_rate', 0):.1%}",
-                    f"{agent_data.get('wins', 0)}-{agent_data.get('losses', 0)}",
-                    agent_data.get('games', 0),
-                    len(agent_data.get('teams_played', [])),
-                    f"{agent_data.get('believability', 0.5):.3f}"
-                )) 
-    def select_no_agents(self):
-        for var in self.codemaster_vars.values():
-            var.set(False)
-        for var in self.guesser_vars.values():
-            var.set(False)
-        self.update_tournament_info()
-    
-    def select_default_agents(self):
-        # Reset to default selections
-        defaults_cm = {"MCTS": True, "EMD": True}
-        defaults_g = {"EMD": True, "MCTS": True}
-        
-        for code, var in self.codemaster_vars.items():
-            var.set(defaults_cm.get(code, False))
-        
-        for code, var in self.guesser_vars.items():
-            var.set(defaults_g.get(code, False))
-        
-        self.update_tournament_info()
-    
     def start_tournament(self):
+        """Start the enhanced tournament"""
         # Validate selection
         selected_cm = [code for code, var in self.codemaster_vars.items() if var.get()]
         selected_g = [code for code, var in self.guesser_vars.items() if var.get()]
@@ -1479,21 +1292,29 @@ class TournamentSettingsWindow:
             return
         
         # Create result configuration
+        size_limits = {"small": 50, "medium": 200, "large": 500}
+        max_games = size_limits.get(self.tournament_size.get(), 200)
+        
         self.result = {
+            'tournament_type': self.tournament_type.get(),
             'codemasters': selected_cm,
             'guessers': selected_g,
             'games_per_matchup': self.games_var.get(),
-            'tournament_type': self.tournament_type.get(),
-            'believability_analysis': self.believability_var.get()
+            'believability_analysis': (self.tournament_type.get() == "believability" and 
+                                     self.believability_enabled.get()),
+            'max_games': max_games
         }
         
         self.window.destroy()
     
     def cancel(self):
+        """Cancel tournament setup"""
         self.result = None
         self.window.destroy()
 
-class TournamentProgressWindow:
+# ==================== ENHANCED PROGRESS WINDOW ====================
+
+class EnhancedTournamentProgressWindow:
     def __init__(self, parent, config):
         self.parent = parent
         self.config = config
@@ -1502,8 +1323,8 @@ class TournamentProgressWindow:
         
         # Create window
         self.window = tk.Toplevel(parent.root)
-        self.window.title("Tournament in Progress")
-        self.window.geometry("600x400")
+        self.window.title("Enhanced Tournament in Progress")
+        self.window.geometry("700x500")
         self.window.configure(bg="#242731")
         self.window.transient(parent.root)
         self.window.grab_set()
@@ -1518,55 +1339,78 @@ class TournamentProgressWindow:
         self.window.protocol("WM_DELETE_WINDOW", self.on_close)
         
         self.create_widgets()
-        
+    
     def create_widgets(self):
         main_frame = tk.Frame(self.window, bg="#242731")
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
         # Title
-        title_label = tk.Label(main_frame, text="Tournament Running", 
-                              font=font.Font(family="Helvetica", size=18, weight="bold"),
+        title_text = f"Enhanced {self.config.get('tournament_type', 'Performance').title()} Tournament"
+        title_label = tk.Label(main_frame, text=title_text, 
+                              font=("Helvetica", 18, "bold"),
                               bg="#242731", fg="#E7E1BD")
         title_label.pack(pady=(0, 20))
         
-        # Progress bar
-        self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(main_frame, variable=self.progress_var,
-                                           maximum=100, length=500)
-        self.progress_bar.pack(pady=10)
+        # Progress bars frame
+        progress_frame = tk.Frame(main_frame, bg="#242731")
+        progress_frame.pack(fill=tk.X, pady=10)
         
-        # Progress label
-        self.progress_label = tk.Label(main_frame, text="Preparing tournament...",
-                                      font=font.Font(family="Helvetica", size=12),
-                                      bg="#242731", fg="#E7E1BD")
-        self.progress_label.pack(pady=10)
+        # Game progress
+        tk.Label(progress_frame, text="Game Progress:", font=("Helvetica", 12, "bold"),
+                bg="#242731", fg="#E7E1BD").pack(anchor=tk.W)
+        
+        self.game_progress_var = tk.DoubleVar()
+        self.game_progress_bar = ttk.Progressbar(progress_frame, variable=self.game_progress_var,
+                                               maximum=100, length=600)
+        self.game_progress_bar.pack(pady=5)
+        
+        self.game_progress_label = tk.Label(progress_frame, text="Preparing tournament...",
+                                          font=("Helvetica", 11),
+                                          bg="#242731", fg="#E7E1BD")
+        self.game_progress_label.pack(pady=5)
+        
+        # Analysis progress (for believability tournaments)
+        if self.config.get('believability_analysis', False):
+            tk.Label(progress_frame, text="Analysis Progress:", font=("Helvetica", 12, "bold"),
+                    bg="#242731", fg="#F1C40F").pack(anchor=tk.W, pady=(10, 0))
+            
+            self.analysis_progress_var = tk.DoubleVar()
+            self.analysis_progress_bar = ttk.Progressbar(progress_frame, variable=self.analysis_progress_var,
+                                                       maximum=100, length=600)
+            self.analysis_progress_bar.pack(pady=5)
+            
+            self.analysis_progress_label = tk.Label(progress_frame, text="Waiting for games to complete...",
+                                                  font=("Helvetica", 11),
+                                                  bg="#242731", fg="#F1C40F")
+            self.analysis_progress_label.pack(pady=5)
         
         # Current match info
         self.match_label = tk.Label(main_frame, text="",
-                                   font=font.Font(family="Helvetica", size=11),
-                                   bg="#242731", fg="#BDC3C7", wraplength=500)
-        self.match_label.pack(pady=5)
+                                   font=("Helvetica", 11),
+                                   bg="#242731", fg="#BDC3C7", wraplength=600)
+        self.match_label.pack(pady=10)
         
         # Stats frame
-        stats_frame = tk.Frame(main_frame, bg="#242731")
+        stats_frame = tk.Frame(main_frame, bg="#242731", bd=1, relief=tk.GROOVE)
         stats_frame.pack(pady=20, fill=tk.X)
         
-        self.stats_label = tk.Label(stats_frame, text="Games completed: 0\nTime elapsed: 0:00\nEstimated remaining: --",
-                                   font=font.Font(family="Helvetica", size=11),
+        self.stats_label = tk.Label(stats_frame, 
+                                   text="Games completed: 0\nTime elapsed: 0:00\nEstimated remaining: --",
+                                   font=("Helvetica", 11),
                                    bg="#242731", fg="#BDC3C7", justify=tk.LEFT)
-        self.stats_label.pack()
+        self.stats_label.pack(padx=10, pady=10)
         
         # Log area
         log_frame = tk.Frame(main_frame, bg="#242731")
         log_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
         
         log_label = tk.Label(log_frame, text="Tournament Log:", 
-                            font=font.Font(family="Helvetica", size=10, weight="bold"),
+                            font=("Helvetica", 10, "bold"),
                             bg="#242731", fg="#E7E1BD")
         log_label.pack(anchor=tk.W)
         
         self.log_text = scrolledtext.ScrolledText(log_frame, height=8,
-                                                font=font.Font(family="Consolas", size=9),
+                                                font=("Consolas", 9),
                                                 bg="#1E1F29", fg="#E7E1BD", 
                                                 relief=tk.FLAT, bd=1, wrap=tk.WORD)
         self.log_text.pack(fill=tk.BOTH, expand=True, pady=5)
@@ -1574,19 +1418,25 @@ class TournamentProgressWindow:
         # Cancel button
         self.cancel_button = tk.Button(main_frame, text="Cancel Tournament", 
                                       command=self.cancel_tournament,
-                                      font=font.Font(family="Helvetica", size=12),
-                                      bg="#F44336", fg="black", relief=tk.FLAT, bd=0, 
+                                      font=("Helvetica", 12),
+                                      bg="#F44336", fg="white", relief=tk.FLAT, bd=0, 
                                       padx=20, pady=8)
         self.cancel_button.pack(pady=10)
-        
-    def update_progress(self, completed, total, current_match=""):
+    
+    def update_enhanced_progress(self, completed, total, current_match="", analysis_stage=""):
+        """Update enhanced progress with analysis information"""
         if not self.cancelled:
+            # Update game progress
             progress = (completed / total) * 100 if total > 0 else 0
-            self.progress_var.set(progress)
-            self.progress_label.config(text=f"Progress: {completed}/{total} games ({progress:.1f}%)")
+            self.game_progress_var.set(progress)
+            self.game_progress_label.config(text=f"Games: {completed}/{total} ({progress:.1f}%)")
             
             if current_match:
                 self.match_label.config(text=f"Current: {current_match}")
+            
+            # Update analysis progress if applicable
+            if hasattr(self, 'analysis_progress_label') and analysis_stage:
+                self.analysis_progress_label.config(text=f"Analysis: {analysis_stage}")
             
             # Update stats
             elapsed = time.time() - self.start_time
@@ -1606,7 +1456,19 @@ Estimated remaining: --"""
             
             self.stats_label.config(text=stats_text)
     
+    def add_analysis_log(self, message, stage="Info"):
+        """Add analysis-specific log entry"""
+        if not self.cancelled:
+            timestamp = time.strftime("%H:%M:%S")
+            formatted_message = f"[{timestamp}] {stage}: {message}"
+            
+            self.log_text.config(state=tk.NORMAL)
+            self.log_text.insert(tk.END, f"{formatted_message}\n")
+            self.log_text.see(tk.END)
+            self.log_text.config(state=tk.DISABLED)
+    
     def format_time(self, seconds):
+        """Format time duration"""
         if seconds < 60:
             return f"{seconds:.0f}s"
         elif seconds < 3600:
@@ -1614,42 +1476,34 @@ Estimated remaining: --"""
         else:
             return f"{seconds/3600:.1f}h"
     
-    def add_log_entry(self, message):
-        if not self.cancelled:
-            self.log_text.config(state=tk.NORMAL)
-            self.log_text.insert(tk.END, f"{message}\n")
-            self.log_text.see(tk.END)
-            self.log_text.config(state=tk.DISABLED)
-    
     def cancel_tournament(self):
+        """Cancel the tournament"""
         result = messagebox.askyesno("Cancel Tournament", 
-                                    "Are you sure you want to cancel the tournament?\nProgress will be lost.")
+                                    "Are you sure you want to cancel the enhanced tournament?\nProgress will be lost.")
         if result:
             self.cancelled = True
             self.cancel_button.config(text="Cancelling...", state=tk.DISABLED)
-            self.add_log_entry("Tournament cancellation requested...")
+            self.add_analysis_log("Tournament cancellation requested...", "System")
     
     def on_close(self):
-        # Prevent closing window directly
+        """Prevent closing window directly"""
         pass
     
     def close(self):
+        """Close the progress window"""
         self.window.destroy()
 
-class TournamentResultsWindow:
-    def __init__(self, parent, results_data):
+# ==================== ENHANCED RESULTS WINDOW ====================
+
+class EnhancedTournamentResultsWindow:
+    def __init__(self, parent, results):
         self.parent = parent
-        self.results_data = results_data
-        
-        print(f"DEBUG: TournamentResultsWindow received data with keys: {results_data.keys()}")
-        print(f"DEBUG: Rankings count: {len(results_data.get('rankings', []))}")
-        print(f"DEBUG: Agent rankings count: {len(results_data.get('agent_rankings', []))}")
-        print(f"DEBUG: Believability enabled: {results_data.get('believability_enabled', False)}")
+        self.results = results
         
         # Create window
         self.window = tk.Toplevel(parent.root)
-        self.window.title("Tournament Results")
-        self.window.geometry("1200x800")
+        self.window.title("Enhanced Tournament Results")
+        self.window.geometry("1400x900")
         self.window.configure(bg="#242731")
         self.window.transient(parent.root)
         
@@ -1660,42 +1514,58 @@ class TournamentResultsWindow:
         ))
         
         self.create_widgets()
-        
+    
     def create_widgets(self):
         main_frame = tk.Frame(self.window, bg="#242731")
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
-        # Title
-        title_label = tk.Label(main_frame, text="Tournament Results", 
+        # Title with tournament type
+        tournament_type = getattr(self.results, 'tournament_name', 'Enhanced Tournament')
+        title_label = tk.Label(main_frame, text=f"Enhanced Tournament Results: {tournament_type}", 
                               font=("Helvetica", 18, "bold"),
                               bg="#242731", fg="#E7E1BD")
         title_label.pack(pady=(0, 20))
+        
+        # Summary stats
+        summary_frame = tk.Frame(main_frame, bg="#242731", bd=1, relief=tk.GROOVE)
+        summary_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        total_games = getattr(self.results, 'total_games', 0)
+        summary_text = f"Total Games: {total_games}"
+        
+        # Add believability info if available
+        if hasattr(self.results, 'believability_analysis'):
+            analysis = self.results.believability_analysis
+            if 'enhanced_metrics_count' in analysis:
+                summary_text += f" | Clues Analyzed: {analysis['enhanced_metrics_count']}"
+        
+        summary_label = tk.Label(summary_frame, text=summary_text,
+                                font=("Helvetica", 12), bg="#242731", fg="#E7E1BD")
+        summary_label.pack(pady=10)
         
         # Create notebook for different views
         notebook = ttk.Notebook(main_frame)
         notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
         
         # Team Rankings tab
-        team_rankings_frame = tk.Frame(notebook, bg="#242731")
-        notebook.add(team_rankings_frame, text="Team Rankings")
+        team_frame = tk.Frame(notebook, bg="#242731")
+        notebook.add(team_frame, text="Team Rankings")
+        self.setup_enhanced_team_rankings(team_frame)
         
         # Agent Rankings tab
-        agent_rankings_frame = tk.Frame(notebook, bg="#242731")
-        notebook.add(agent_rankings_frame, text="Agent Rankings")
+        agent_frame = tk.Frame(notebook, bg="#242731")
+        notebook.add(agent_frame, text="Agent Rankings")
+        self.setup_enhanced_agent_rankings(agent_frame)
         
-        # Believability tab (if enabled)
-        if self.results_data.get('believability_enabled', False):
+        # Believability tab (if available)
+        if hasattr(self.results, 'believability_analysis') and self.results.believability_analysis:
             believe_frame = tk.Frame(notebook, bg="#242731")
             notebook.add(believe_frame, text="Believability Analysis")
-            self.setup_believability_tab(believe_frame)
+            self.setup_enhanced_believability_tab(believe_frame)
         
-        # Raw data tab
+        # Raw Data tab
         raw_frame = tk.Frame(notebook, bg="#242731")
         notebook.add(raw_frame, text="Raw Data")
-        
-        # Setup tabs
-        self.setup_team_rankings_tab(team_rankings_frame)
-        self.setup_agent_rankings_tab(agent_rankings_frame)
         self.setup_raw_data_tab(raw_frame)
         
         # Button frame
@@ -1703,7 +1573,8 @@ class TournamentResultsWindow:
         button_frame.pack(fill=tk.X, pady=(10, 0))
         
         # Export button
-        export_btn = tk.Button(button_frame, text="Export Results", command=self.export_results,
+        export_btn = tk.Button(button_frame, text="Export Enhanced Results", 
+                              command=self.export_enhanced_results,
                               font=("Helvetica", 12),
                               bg="#FF9800", fg="white", relief=tk.FLAT, bd=0, 
                               padx=20, pady=8)
@@ -1716,10 +1587,10 @@ class TournamentResultsWindow:
                              padx=20, pady=8)
         close_btn.pack(side=tk.RIGHT)
     
-    def setup_team_rankings_tab(self, parent):
-        """Setup team rankings tab"""
-        # Create treeview for team rankings
-        columns = ("Rank", "Team", "Win Rate", "W-L", "Games", "TrueSkill", "Composite")
+    def setup_enhanced_team_rankings(self, parent):
+        """Setup enhanced team rankings"""
+        # Create treeview with enhanced columns
+        columns = ("Rank", "Team", "Win Rate", "W-L", "Games", "TrueSkill", "Conservative")
         tree = ttk.Treeview(parent, columns=columns, show="headings", height=20)
         
         # Configure columns
@@ -1732,7 +1603,7 @@ class TournamentResultsWindow:
         tree.column("W-L", width=80, anchor=tk.CENTER)
         tree.column("Games", width=60, anchor=tk.CENTER)
         tree.column("TrueSkill", width=100, anchor=tk.CENTER)
-        tree.column("Composite", width=100, anchor=tk.CENTER)
+        tree.column("Conservative", width=100, anchor=tk.CENTER)
         
         # Add scrollbar
         scrollbar = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=tree.yview)
@@ -1743,56 +1614,33 @@ class TournamentResultsWindow:
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
         # Populate with team data
-        if 'rankings' in self.results_data and self.results_data['rankings']:
-            print(f"DEBUG: Populating team rankings with {len(self.results_data['rankings'])} entries")
-            for i, ranking in enumerate(self.results_data['rankings'], 1):
-                win_rate = ranking.get('win_rate', 0)
-                wins = ranking.get('wins', 0)
-                losses = ranking.get('losses', 0)
-                total_games = wins + losses
-                trueskill = ranking.get('trueskill', 0)
-                composite = ranking.get('composite_score', 0)
+        if hasattr(self.results, 'team_rankings') and self.results.team_rankings:
+            for i, (team_key, stats) in enumerate(self.results.team_rankings, 1):
+                win_rate = getattr(stats, 'win_rate', 0) if hasattr(stats, 'win_rate') else stats.wins / max(1, stats.total_games)
+                wins = getattr(stats, 'wins', 0)
+                losses = getattr(stats, 'losses', 0)
+                total_games = getattr(stats, 'total_games', 0)
+                trueskill = getattr(stats, 'trueskill_rating', None)
+                conservative = getattr(stats, 'conservative_skill', 0) if hasattr(stats, 'conservative_skill') else 0
+                
+                trueskill_text = f"{trueskill.mu:.1f}" if trueskill else "N/A"
                 
                 tree.insert("", tk.END, values=(
                     i,
-                    ranking.get('team', 'Unknown'),
+                    team_key,
                     f"{win_rate:.1%}",
                     f"{wins}-{losses}",
                     total_games,
-                    f"{trueskill:.1f}",
-                    f"{composite:.3f}"
+                    trueskill_text,
+                    f"{conservative:.2f}"
                 ))
         else:
-            print("DEBUG: No team rankings data found")
-            # Show message if no data
             tree.insert("", tk.END, values=("", "No team data available", "", "", "", "", ""))
     
-    def setup_agent_rankings_tab(self, parent):
-        """Setup agent rankings with separate sections"""
-        # Create notebook for agent types
-        agent_notebook = ttk.Notebook(parent)
-        agent_notebook.pack(fill=tk.BOTH, expand=True)
-        
-        # All agents tab
-        all_frame = tk.Frame(agent_notebook, bg="#242731")
-        agent_notebook.add(all_frame, text="All Agents")
-        
-        # Codemasters tab
-        cm_frame = tk.Frame(agent_notebook, bg="#242731")
-        agent_notebook.add(cm_frame, text="Codemasters")
-        
-        # Guessers tab
-        g_frame = tk.Frame(agent_notebook, bg="#242731")
-        agent_notebook.add(g_frame, text="Guessers")
-        
-        # Setup each tab
-        self.setup_agent_ranking_table(all_frame, "all")
-        self.setup_agent_ranking_table(cm_frame, "codemaster")
-        self.setup_agent_ranking_table(g_frame, "guesser")
-    
-    def setup_agent_ranking_table(self, parent, agent_type):
-        """Setup ranking table for specific agent type"""
-        columns = ("Rank", "Agent", "Win Rate", "W-L", "Games", "Teams", "Believability")
+    def setup_enhanced_agent_rankings(self, parent):
+        """Setup enhanced agent rankings"""
+        # Create treeview for agent rankings
+        columns = ("Rank", "Agent", "Type", "Win Rate", "W-L", "Games", "Performance")
         tree = ttk.Treeview(parent, columns=columns, show="headings", height=20)
         
         # Configure columns
@@ -1801,11 +1649,11 @@ class TournamentResultsWindow:
         
         tree.column("Rank", width=50, anchor=tk.CENTER)
         tree.column("Agent", width=150, anchor=tk.W)
+        tree.column("Type", width=100, anchor=tk.CENTER)
         tree.column("Win Rate", width=80, anchor=tk.CENTER)
         tree.column("W-L", width=80, anchor=tk.CENTER)
         tree.column("Games", width=60, anchor=tk.CENTER)
-        tree.column("Teams", width=60, anchor=tk.CENTER)
-        tree.column("Believability", width=100, anchor=tk.CENTER)
+        tree.column("Performance", width=100, anchor=tk.CENTER)
         
         # Add scrollbar
         scrollbar = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=tree.yview)
@@ -1816,65 +1664,58 @@ class TournamentResultsWindow:
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
         # Populate with agent data
-        if 'agent_rankings' in self.results_data and self.results_data['agent_rankings']:
-            print(f"DEBUG: Populating {agent_type} agent rankings")
-            filtered_agents = []
-            for agent_data in self.results_data['agent_rankings']:
-                if agent_type == "all" or agent_data.get('type') == agent_type:
-                    filtered_agents.append(agent_data)
-            
-            print(f"DEBUG: Found {len(filtered_agents)} agents for {agent_type} category")
-            
-            for i, agent_data in enumerate(filtered_agents, 1):
+        if hasattr(self.results, 'agent_rankings') and self.results.agent_rankings:
+            for i, (agent_name, metrics) in enumerate(self.results.agent_rankings, 1):
+                agent_type = getattr(metrics, 'agent_type', 'Unknown')
+                wins = getattr(metrics, 'wins', 0)
+                losses = getattr(metrics, 'losses', 0)
+                games_played = getattr(metrics, 'games_played', 0)
+                win_rate = wins / max(1, games_played)
+                
+                # Get performance metric
+                performance = getattr(metrics, 'role_based_rating', None)
+                perf_text = f"{performance.mu:.1f}" if performance else "N/A"
+                
                 tree.insert("", tk.END, values=(
                     i,
-                    agent_data.get('name', 'Unknown'),
-                    f"{agent_data.get('win_rate', 0):.1%}",
-                    f"{agent_data.get('wins', 0)}-{agent_data.get('losses', 0)}",
-                    agent_data.get('games', 0),
-                    len(agent_data.get('teams_played', [])),
-                    f"{agent_data.get('believability', 0.5):.3f}"
+                    agent_name,
+                    agent_type.title(),
+                    f"{win_rate:.1%}",
+                    f"{wins}-{losses}",
+                    games_played,
+                    perf_text
                 ))
         else:
-            print(f"DEBUG: No agent rankings data found for {agent_type}")
-            # Show message if no data
             tree.insert("", tk.END, values=("", "No agent data available", "", "", "", "", ""))
     
-    def setup_believability_tab(self, parent):
+    def setup_enhanced_believability_tab(self, parent):
         """Setup believability analysis tab"""
-        # Create frame for believability analysis
-        believe_frame = tk.Frame(parent, bg="#242731")
-        believe_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Believability rankings
-        believe_label = tk.Label(believe_frame, text="Clue Believability Analysis", 
+        # Create label
+        believe_label = tk.Label(parent, text="Believability Analysis", 
                                 font=("Helvetica", 14, "bold"),
                                 bg="#242731", fg="#F1C40F")
         believe_label.pack(pady=(0, 10))
         
         # Check if we have believability data
-        if 'believability_data' not in self.results_data or not self.results_data['believability_data']:
-            print("DEBUG: No believability data found")
-            # Show message if no data
-            no_data_label = tk.Label(believe_frame, 
-                                    text="No believability data available.\nEnable believability analysis in tournament settings to see this data.",
+        analysis = self.results.believability_analysis
+        if not analysis or 'top_believable_codemasters' not in analysis:
+            no_data_label = tk.Label(parent, 
+                                    text="No believability data available.\nEnable believability analysis in tournament settings.",
                                     font=("Helvetica", 12),
                                     bg="#242731", fg="#BDC3C7")
             no_data_label.pack(expand=True)
             return
         
-        print(f"DEBUG: Setting up believability tab with {len(self.results_data['believability_data'])} entries")
-        
         # Create treeview for believability
-        b_columns = ("Rank", "Agent", "Type", "Believability", "Frequency", "Coherence", "Human-like")
-        b_tree = ttk.Treeview(believe_frame, columns=b_columns, show="headings", height=15)
+        b_columns = ("Rank", "Agent", "Believability", "Details")
+        b_tree = ttk.Treeview(parent, columns=b_columns, show="headings", height=15)
         
         for col in b_columns:
             b_tree.heading(col, text=col)
-            b_tree.column(col, width=120, anchor=tk.CENTER)
+            b_tree.column(col, width=150, anchor=tk.CENTER)
         
         # Add scrollbar
-        b_scrollbar = ttk.Scrollbar(believe_frame, orient=tk.VERTICAL, command=b_tree.yview)
+        b_scrollbar = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=b_tree.yview)
         b_tree.configure(yscrollcommand=b_scrollbar.set)
         
         # Pack widgets
@@ -1882,15 +1723,13 @@ class TournamentResultsWindow:
         b_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
         # Populate with believability data
-        for i, data in enumerate(self.results_data['believability_data'], 1):
+        top_believable = analysis.get('top_believable_codemasters', [])
+        for i, (name, score) in enumerate(top_believable, 1):
             b_tree.insert("", tk.END, values=(
                 i,
-                data.get('agent_name', 'Unknown'),
-                data.get('agent_type', 'Unknown'),
-                f"{data.get('overall_believability', 0):.3f}",
-                f"{data.get('frequency_score', 0):.3f}",
-                f"{data.get('semantic_coherence', 0):.3f}",
-                f"{data.get('human_likeness', 0):.3f}"
+                name,
+                f"{score:.3f}",
+                "Codemaster Analysis"
             ))
     
     def setup_raw_data_tab(self, parent):
@@ -1906,67 +1745,70 @@ class TournamentResultsWindow:
         raw_text.pack(fill=tk.BOTH, expand=True)
         
         # Add raw data
-        raw_data = json.dumps(self.results_data, indent=2, default=str)
-        raw_text.insert(tk.END, raw_data)
+        try:
+            if hasattr(self.results, 'to_dict'):
+                raw_data = json.dumps(self.results.to_dict(), indent=2, default=str)
+            else:
+                raw_data = str(self.results)
+            raw_text.insert(tk.END, raw_data)
+        except Exception as e:
+            raw_text.insert(tk.END, f"Error displaying raw data: {e}")
+        
         raw_text.config(state=tk.DISABLED)
     
-    def export_results(self):
-        """Export tournament results"""
+    def export_enhanced_results(self):
+        """Export enhanced tournament results"""
         from tkinter import filedialog
         
         # Ask for save location
         filename = filedialog.asksaveasfilename(
             defaultextension=".json",
             filetypes=[("JSON files", "*.json"), ("CSV files", "*.csv"), ("All files", "*.*")],
-            title="Export Tournament Results"
+            title="Export Enhanced Tournament Results"
         )
         
         if filename:
             try:
                 if filename.endswith('.json'):
+                    # Export JSON
+                    if hasattr(self.results, 'to_dict'):
+                        data = self.results.to_dict()
+                    else:
+                        data = {"message": "Enhanced results format not available"}
+                    
                     with open(filename, 'w') as f:
-                        json.dump(self.results_data, f, indent=2, default=str)
+                        json.dump(data, f, indent=2, default=str)
+                
                 elif filename.endswith('.csv'):
+                    # Export CSV
                     with open(filename, 'w', newline='') as f:
                         writer = csv.writer(f)
-                        # Export team rankings
-                        writer.writerow(["Team Rankings"])
-                        writer.writerow(["Rank", "Team", "Win Rate", "Wins", "Losses", "TrueSkill", "Composite"])
-                        for i, ranking in enumerate(self.results_data.get('rankings', []), 1):
-                            writer.writerow([
-                                i,
-                                ranking.get('team', 'Unknown'),
-                                f"{ranking.get('win_rate', 0):.3f}",
-                                ranking.get('wins', 0),
-                                ranking.get('losses', 0),
-                                f"{ranking.get('trueskill', 0):.3f}",
-                                f"{ranking.get('composite_score', 0):.3f}"
-                            ])
                         
-                        # Export agent rankings
-                        writer.writerow([])
-                        writer.writerow(["Agent Rankings"])
-                        writer.writerow(["Rank", "Agent", "Type", "Win Rate", "Wins", "Losses", "Games", "Teams", "Believability"])
-                        for i, agent in enumerate(self.results_data.get('agent_rankings', []), 1):
-                            writer.writerow([
-                                i,
-                                agent.get('name', 'Unknown'),
-                                agent.get('type', 'Unknown'),
-                                f"{agent.get('win_rate', 0):.3f}",
-                                agent.get('wins', 0),
-                                agent.get('losses', 0),
-                                agent.get('games', 0),
-                                len(agent.get('teams_played', [])),
-                                f"{agent.get('believability', 0.5):.3f}"
-                            ])
+                        # Export team rankings
+                        writer.writerow(["Enhanced Tournament Results"])
+                        writer.writerow(["Team Rankings"])
+                        writer.writerow(["Rank", "Team", "Win Rate", "Wins", "Losses", "Games", "TrueSkill"])
+                        
+                        if hasattr(self.results, 'team_rankings'):
+                            for i, (team_key, stats) in enumerate(self.results.team_rankings, 1):
+                                win_rate = getattr(stats, 'win_rate', 0) if hasattr(stats, 'win_rate') else stats.wins / max(1, stats.total_games)
+                                wins = getattr(stats, 'wins', 0)
+                                losses = getattr(stats, 'losses', 0)
+                                total_games = getattr(stats, 'total_games', 0)
+                                trueskill = getattr(stats, 'trueskill_rating', None)
+                                trueskill_text = f"{trueskill.mu:.2f}" if trueskill else "N/A"
+                                
+                                writer.writerow([i, team_key, f"{win_rate:.3f}", wins, losses, total_games, trueskill_text])
                 
-                messagebox.showinfo("Export Complete", f"Results exported to {filename}")
+                messagebox.showinfo("Export Complete", f"Enhanced results exported to {filename}")
             except Exception as e:
                 messagebox.showerror("Export Error", f"Failed to export results:\n{str(e)}")
 
 # ==================== MAIN ====================
 
 if __name__ == "__main__":
-   root = tk.Tk()
-   app = CodenamesGUI(root)
-   root.mainloop()
+    root = tk.Tk()
+    app = CodenamesGUI(root)
+    root.mainloop().Radiobutton(size_frame, text="Small (≤50 games)", variable=self.tournament_size, value="small",
+                      bg="#242731", fg="#E7E1BD", selectcolor="#242731").pack(anchor=tk.W, padx=10, pady=2)
+                        

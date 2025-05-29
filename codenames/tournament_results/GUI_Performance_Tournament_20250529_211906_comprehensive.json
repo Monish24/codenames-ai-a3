@@ -1,0 +1,209 @@
+{
+  "tournament_name": "GUI_Performance_Tournament_20250529_211906",
+  "total_games": 2,
+  "match_results": [
+    {
+      "match_id": "MCTS_CM+EMD_Guesser_vs_EMD_CM+EMD_Guesser_1690",
+      "red_codemaster": "MCTS_CM",
+      "red_guesser": "EMD_Guesser",
+      "blue_codemaster": "EMD_CM",
+      "blue_guesser": "EMD_Guesser",
+      "winner": "B",
+      "total_turns": 0,
+      "red_words_found": 8,
+      "blue_words_found": 8,
+      "civilians_hit": 0,
+      "assassin_hit": false,
+      "game_duration": 4.125183820724487,
+      "seed": 1690,
+      "timestamp": "2025-05-29 21:19:47",
+      "red_turns_to_victory": null,
+      "blue_turns_to_victory": 0,
+      "clue_records": [],
+      "guess_records": []
+    },
+    {
+      "match_id": "EMD_CM+EMD_Guesser_vs_MCTS_CM+EMD_Guesser_2301",
+      "red_codemaster": "EMD_CM",
+      "red_guesser": "EMD_Guesser",
+      "blue_codemaster": "MCTS_CM",
+      "blue_guesser": "EMD_Guesser",
+      "winner": "R",
+      "total_turns": 0,
+      "red_words_found": 9,
+      "blue_words_found": 6,
+      "civilians_hit": 0,
+      "assassin_hit": false,
+      "game_duration": 3.7091948986053467,
+      "seed": 2301,
+      "timestamp": "2025-05-29 21:19:50",
+      "red_turns_to_victory": 0,
+      "blue_turns_to_victory": null,
+      "clue_records": [],
+      "guess_records": []
+    }
+  ],
+  "team_rankings": [
+    [
+      "EMD_CM+EMD_Guesser",
+      {
+        "codemaster": "EMD_CM",
+        "guesser": "EMD_Guesser",
+        "wins": 2,
+        "losses": 0,
+        "total_games": 2,
+        "avg_turns_when_winning": 0.0,
+        "avg_words_found": 8.5,
+        "trueskill_rating": "trueskill.Rating(mu=31.230, sigma=6.523)",
+        "avg_turns_all_games": 0.0,
+        "team_synergy_score": 0.0,
+        "consistency_score": 0.0
+      }
+    ],
+    [
+      "MCTS_CM+EMD_Guesser",
+      {
+        "codemaster": "MCTS_CM",
+        "guesser": "EMD_Guesser",
+        "wins": 0,
+        "losses": 2,
+        "total_games": 2,
+        "avg_turns_when_winning": 0.0,
+        "avg_words_found": 7.0,
+        "trueskill_rating": "trueskill.Rating(mu=18.770, sigma=6.523)",
+        "avg_turns_all_games": 0.0,
+        "team_synergy_score": 0.0,
+        "consistency_score": 0.0
+      }
+    ]
+  ],
+  "agent_rankings": [
+    [
+      "EMD_CM",
+      {
+        "name": "EMD_CM",
+        "agent_type": "codemaster",
+        "games_played": 2,
+        "wins": 2,
+        "losses": 0,
+        "trueskill_rating": "trueskill.Rating(mu=25.000, sigma=8.333)",
+        "role_based_rating": "trueskill.Rating(mu=29.527, sigma=4.367)",
+        "avg_turns_to_victory": 0.0,
+        "avg_turns_all_games": 0.0,
+        "codemaster_metrics": {},
+        "guesser_metrics": {},
+        "believability_scores": {},
+        "composite_believability": 0.0
+      }
+    ],
+    [
+      "EMD_Guesser",
+      {
+        "name": "EMD_Guesser",
+        "agent_type": "guesser",
+        "games_played": 4,
+        "wins": 2,
+        "losses": 2,
+        "trueskill_rating": "trueskill.Rating(mu=25.000, sigma=8.333)",
+        "role_based_rating": "trueskill.Rating(mu=24.739, sigma=4.365)",
+        "avg_turns_to_victory": 0.0,
+        "avg_turns_all_games": 0.0,
+        "codemaster_metrics": {},
+        "guesser_metrics": {},
+        "believability_scores": {},
+        "composite_believability": 0.0
+      }
+    ],
+    [
+      "MCTS_CM",
+      {
+        "name": "MCTS_CM",
+        "agent_type": "codemaster",
+        "games_played": 2,
+        "wins": 0,
+        "losses": 2,
+        "trueskill_rating": "trueskill.Rating(mu=25.000, sigma=8.333)",
+        "role_based_rating": "trueskill.Rating(mu=22.527, sigma=4.363)",
+        "avg_turns_to_victory": 0.0,
+        "avg_turns_all_games": 0.0,
+        "codemaster_metrics": {},
+        "guesser_metrics": {},
+        "believability_scores": {},
+        "composite_believability": 0.0
+      }
+    ]
+  ],
+  "codemaster_rankings": [
+    [
+      "EMD_CM",
+      {
+        "name": "EMD_CM",
+        "agent_type": "codemaster",
+        "games_played": 2,
+        "wins": 2,
+        "losses": 0,
+        "trueskill_rating": "trueskill.Rating(mu=25.000, sigma=8.333)",
+        "role_based_rating": "trueskill.Rating(mu=29.527, sigma=4.367)",
+        "avg_turns_to_victory": 0.0,
+        "avg_turns_all_games": 0.0,
+        "codemaster_metrics": {},
+        "guesser_metrics": {},
+        "believability_scores": {},
+        "composite_believability": 0.0
+      }
+    ],
+    [
+      "MCTS_CM",
+      {
+        "name": "MCTS_CM",
+        "agent_type": "codemaster",
+        "games_played": 2,
+        "wins": 0,
+        "losses": 2,
+        "trueskill_rating": "trueskill.Rating(mu=25.000, sigma=8.333)",
+        "role_based_rating": "trueskill.Rating(mu=22.527, sigma=4.363)",
+        "avg_turns_to_victory": 0.0,
+        "avg_turns_all_games": 0.0,
+        "codemaster_metrics": {},
+        "guesser_metrics": {},
+        "believability_scores": {},
+        "composite_believability": 0.0
+      }
+    ]
+  ],
+  "guesser_rankings": [
+    [
+      "EMD_Guesser",
+      {
+        "name": "EMD_Guesser",
+        "agent_type": "guesser",
+        "games_played": 4,
+        "wins": 2,
+        "losses": 2,
+        "trueskill_rating": "trueskill.Rating(mu=25.000, sigma=8.333)",
+        "role_based_rating": "trueskill.Rating(mu=24.739, sigma=4.365)",
+        "avg_turns_to_victory": 0.0,
+        "avg_turns_all_games": 0.0,
+        "codemaster_metrics": {},
+        "guesser_metrics": {},
+        "believability_scores": {},
+        "composite_believability": 0.0
+      }
+    ]
+  ],
+  "believability_analysis": {
+    "total_clues_analyzed": 0,
+    "agent_believability_scores": {},
+    "top_believable_codemasters": [
+      [
+        "MCTS_CM",
+        0.0
+      ],
+      [
+        "EMD_CM",
+        0.0
+      ]
+    ],
+    "believability_distribution": {}
+  }
+}

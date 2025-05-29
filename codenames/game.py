@@ -6,6 +6,9 @@ import os
 import shutil
 import sys
 import colorama
+from typing import List, Dict, Any, Optional, Tuple
+from dataclasses import dataclass
+from collections import defaultdict
 
 
 class GameCondition(enum.Enum):
@@ -16,15 +19,53 @@ class GameCondition(enum.Enum):
     BLUE_WIN = 3
 
 
+@dataclass
+class ClueRecord:
+    """Record of a clue given during the game"""
+    clue_word: str
+    clue_number: int
+    codemaster_name: str
+    target_words: List[str]  # Intended targets (from key grid)
+    guessed_words: List[str]  # What was actually guessed
+    correct_guesses: List[str]  # Correct guesses from this clue
+    turn_number: int
+    team_color: str
+    game_seed: int
+    timestamp: str
+    revealed_cards: int = 0  # Total cards revealed this turn
+    target_cards: int = 0    # Number of target cards revealed
+    
+    def __post_init__(self):
+        self.target_cards = len([w for w in self.guessed_words if w in self.target_words])
+        self.revealed_cards = len(self.guessed_words)
+
+
+@dataclass
+class GuessRecord:
+    """Record of a single guess made during gameplay"""
+    guess_word: str
+    guesser_name: str
+    clue_word: str
+    clue_number: int
+    is_correct: bool
+    card_type: str  # 'team', 'opponent', 'civilian', 'assassin'
+    confidence: float  # If available from guesser
+    turn_number: int
+    guess_order: int  # Order of this guess within the turn
+    team_color: str
+    game_seed: int
+    timestamp: str
+
+
 class Game:
-    """Class that setups up game details and calls Codemaster/Guesser pairs to play the game
+    """Enhanced Game class with comprehensive data collection
     """
 
     def __init__(self, codemaster_red, guesser_red, codemaster_blue, guesser_blue,
                  seed="time", do_print=True, do_log=True, game_name="default",
                  cmr_kwargs={}, gr_kwargs={}, cmb_kwargs={}, gb_kwargs={},
-                 single_team=False):
-        """ Setup Game details
+                 single_team=False, collect_data=True):
+        """ Setup Game details with enhanced data collection
 
         Args:
             codemaster_red (:class:`Codemaster`):
@@ -57,6 +98,9 @@ class Game:
             single_team (bool, optional): 
                 Whether to play the single team track version. 
                 Defaults to False.
+            collect_data (bool, optional):
+                Whether to collect detailed clue and guess data.
+                Defaults to True.
         """
 
         self.game_winner = None
@@ -81,11 +125,29 @@ class Game:
         self.do_log = do_log
         self.game_name = game_name
         self.single_team = single_team
+        self.collect_data = collect_data
 
         self.num_red_words = 9
         self.num_blue_words = 8
         self.num_civilian_words = 7
         self.num_assassin_words = 1
+
+        # Enhanced data collection
+        self.clue_records: List[ClueRecord] = []
+        self.guess_records: List[GuessRecord] = []
+        self.turn_counter = 0
+        self.current_clue = None
+        self.current_clue_number = 0
+        self.current_codemaster = None
+        self.current_guesser = None
+        self.current_team_color = None
+        self.guess_order_in_turn = 0
+        
+        # Performance tracking
+        self.red_turns_taken = 0
+        self.blue_turns_taken = 0
+        self.cards_revealed_per_turn = []
+        self.turn_start_times = []
 
         # set seed so that board/keygrid can be reloaded later
         if seed == 'time':
@@ -184,12 +246,111 @@ class Game:
     def get_key_grid(self):
         """Return the codemaster's key"""
         return self.key_grid
-
+    
+    def get_target_words_for_team(self, team_color: str) -> List[str]:
+        """Get the target words for a specific team"""
+        target_words = []
+        for i, word in enumerate(self.words_on_board):
+            if self.key_grid[i] == team_color and not word.startswith("*"):
+                target_words.append(word)
+        return target_words
+    
+    def capture_clue_data(self, clue: str, clue_num: int, codemaster, team_color: str):
+        """Capture clue data for analysis"""
+        if not self.collect_data:
+            return
+            
+        # Get intended target words from key grid
+        target_words = self.get_target_words_for_team(team_color)
+        
+        # Store current clue context for guess tracking
+        self.current_clue = clue
+        self.current_clue_number = clue_num
+        self.current_codemaster = codemaster.__class__.__name__
+        self.current_team_color = team_color
+        self.guess_order_in_turn = 0
+        
+        # Create preliminary clue record (will be updated with guesses)
+        clue_record = ClueRecord(
+            clue_word=clue,
+            clue_number=clue_num,
+            codemaster_name=self.current_codemaster,
+            target_words=target_words,
+            guessed_words=[],  # Will be filled as guesses are made
+            correct_guesses=[],  # Will be filled as guesses are made
+            turn_number=self.turn_counter,
+            team_color=team_color,
+            game_seed=int(self.seed),
+            timestamp=time.strftime("%Y-%m-%d %H:%M:%S")
+        )
+        
+        self.clue_records.append(clue_record)
+    
+    def capture_guess_data(self, guess_word: str, guesser, card_type: str, is_correct: bool):
+        """Capture individual guess data"""
+        if not self.collect_data:
+            return
+            
+        self.guess_order_in_turn += 1
+        
+        # Try to get confidence from guesser if available
+        confidence = 0.5  # Default confidence
+        if hasattr(guesser, 'last_confidence'):
+            confidence = getattr(guesser, 'last_confidence', 0.5)
+        elif hasattr(guesser, 'get_confidence'):
+            try:
+                confidence = guesser.get_confidence()
+            except:
+                confidence = 0.5
+        
+        # Create guess record
+        guess_record = GuessRecord(
+            guess_word=guess_word,
+            guesser_name=guesser.__class__.__name__,
+            clue_word=self.current_clue or "",
+            clue_number=self.current_clue_number,
+            is_correct=is_correct,
+            card_type=card_type,
+            confidence=confidence,
+            turn_number=self.turn_counter,
+            guess_order=self.guess_order_in_turn,
+            team_color=self.current_team_color or "",
+            game_seed=int(self.seed),
+            timestamp=time.strftime("%Y-%m-%d %H:%M:%S")
+        )
+        
+        self.guess_records.append(guess_record)
+        
+        # Update the current clue record with this guess
+        if self.clue_records and self.current_clue:
+            current_clue_record = self.clue_records[-1]
+            if current_clue_record.clue_word == self.current_clue:
+                current_clue_record.guessed_words.append(guess_word)
+                if is_correct:
+                    current_clue_record.correct_guesses.append(guess_word)
+    
     def _accept_guess(self, guess_index, game_condition):
-        """Function that takes in an int index called guess to compare with the key grid
+        """Enhanced function that takes in an int index called guess to compare with the key grid
         """
         guessed_word = self.words_on_board[guess_index]
         guessed_team = self.key_grid[guess_index]
+        
+        # Determine if guess is correct for current team
+        current_team = "Red" if game_condition == GameCondition.RED_TURN else "Blue"
+        is_correct = (guessed_team == current_team)
+        
+        # Map team to card type for data collection
+        card_type_map = {
+            "Red": "team" if current_team == "Red" else "opponent",
+            "Blue": "team" if current_team == "Blue" else "opponent", 
+            "Civilian": "civilian",
+            "Assassin": "assassin"
+        }
+        card_type = card_type_map.get(guessed_team, "unknown")
+        
+        # Capture guess data
+        current_guesser = self.guesser_red if current_team == "Red" else self.guesser_blue
+        self.capture_guess_data(guessed_word, current_guesser, card_type, is_correct)
         
         # STRUCTURED OUTPUT FOR GUI
         print(f"GUESS_RESULT: {guessed_word}|{guessed_team}|{game_condition.name}")
@@ -222,7 +383,7 @@ class Game:
                 return GameCondition.RED_TURN
 
     def write_results(self, num_of_turns):
-        """Logging function
+        """Enhanced logging function with performance metrics
         writes in both the original and a more detailed new style
         """
         red_result = 0
@@ -254,28 +415,76 @@ class Game:
                 f'SEED:{self.seed} WINNER:{self.game_winner}\n'
             )
 
+        # Enhanced results with performance metrics
+        enhanced_results = {
+            "game_name": self.game_name,
+            "total_turns": num_of_turns,
+            "R": red_result, "B": blue_result, "C": civ_result, "A": assa_result,
+            "codemaster_red": self.codemaster_red.__class__.__name__,
+            "guesser_red": self.guesser_red.__class__.__name__,
+            "codemaster_blue": self.codemaster_blue.__class__.__name__,
+            "guesser_blue": self.guesser_blue.__class__.__name__,
+            "seed": self.seed,
+            "winner": self.game_winner,
+            "time_s": (self.game_end_time - self.game_start_time),
+            "cmr_kwargs": {k: v if isinstance(v, (float, int, str)) else None
+                          for k, v in self.cmr_kwargs.items()},
+            "gr_kwargs": {k: v if isinstance(v, (float, int, str)) else None
+                         for k, v in self.gr_kwargs.items()},
+            "cmb_kwargs": {k: v if isinstance(v, (float, int, str)) else None
+                          for k, v in self.cmb_kwargs.items()},
+            "gb_kwargs": {k: v if isinstance(v, (float, int, str)) else None
+                         for k, v in self.gb_kwargs.items()},
+            
+            # Enhanced metrics
+            "red_turns_taken": self.red_turns_taken,
+            "blue_turns_taken": self.blue_turns_taken,
+            "total_clues_given": len(self.clue_records),
+            "total_guesses_made": len(self.guess_records),
+            "avg_cards_per_turn": sum(self.cards_revealed_per_turn) / len(self.cards_revealed_per_turn) if self.cards_revealed_per_turn else 0
+        }
+
         with open("results/bot_results_new_style.txt", "a") as f:
-            results = {"game_name": self.game_name,
-                       "total_turns": num_of_turns,
-                       "R": red_result, "B": blue_result, "C": civ_result, "A": assa_result,
-                       "codemaster_red": self.codemaster_red.__class__.__name__,
-                       "guesser_red": self.guesser_red.__class__.__name__,
-                       "codemaster_blue": self.codemaster_blue.__class__.__name__,
-                       "guesser_blue": self.guesser_blue.__class__.__name__,
-                       "seed": self.seed,
-                       "winner": self.game_winner,
-                       "time_s": (self.game_end_time - self.game_start_time),
-                       "cmr_kwargs": {k: v if isinstance(v, float) or isinstance(v, int) or isinstance(v, str) else None
-                                      for k, v in self.cmr_kwargs.items()},
-                       "gr_kwargs": {k: v if isinstance(v, float) or isinstance(v, int) or isinstance(v, str) else None
-                                     for k, v in self.gr_kwargs.items()},
-                       "cmb_kwargs": {k: v if isinstance(v, float) or isinstance(v, int) or isinstance(v, str) else None
-                                      for k, v in self.cmb_kwargs.items()},
-                       "gb_kwargs": {k: v if isinstance(v, float) or isinstance(v, int) or isinstance(v, str) else None
-                                     for k, v in self.gb_kwargs.items()},
-                       }
-            f.write(json.dumps(results))
+            f.write(json.dumps(enhanced_results))
             f.write('\n')
+    
+    def get_collected_data(self) -> Tuple[List[ClueRecord], List[GuessRecord]]:
+        """Return collected clue and guess data for analysis"""
+        return self.clue_records.copy(), self.guess_records.copy()
+    
+    def get_performance_metrics(self) -> Dict[str, Any]:
+        """Get performance metrics for this game"""
+        
+        # Calculate clue efficiency metrics
+        clue_efficiencies = []
+        for clue_record in self.clue_records:
+            if clue_record.revealed_cards > 0:
+                efficiency = clue_record.target_cards / clue_record.revealed_cards
+                clue_efficiencies.append(efficiency)
+        
+        # Calculate guess accuracy
+        correct_guesses = sum(1 for guess in self.guess_records if guess.is_correct)
+        total_guesses = len(self.guess_records)
+        guess_accuracy = correct_guesses / total_guesses if total_guesses > 0 else 0
+        
+        # Team-specific metrics
+        red_clues = [c for c in self.clue_records if c.team_color == "Red"]
+        blue_clues = [c for c in self.clue_records if c.team_color == "Blue"]
+        
+        return {
+            "avg_clue_efficiency": sum(clue_efficiencies) / len(clue_efficiencies) if clue_efficiencies else 0,
+            "overall_guess_accuracy": guess_accuracy,
+            "total_turns": self.turn_counter,
+            "red_clues_count": len(red_clues),
+            "blue_clues_count": len(blue_clues),
+            "game_duration": self.game_end_time - self.game_start_time if self.game_end_time else 0,
+            "words_found": {
+                "red": self.words_on_board.count("*Red*"),
+                "blue": self.words_on_board.count("*Blue*"),
+                "civilian": self.words_on_board.count("*Civilian*"),
+                "assassin": self.words_on_board.count("*Assassin*")
+            }
+        }
 
     @staticmethod
     def clear_results():
@@ -284,11 +493,16 @@ class Game:
             shutil.rmtree("results")
 
     def run(self):
-        """Function that runs the codenames game between codemaster and guesser"""
+        """Enhanced function that runs the codenames game between codemaster and guesser"""
         game_condition = GameCondition.RED_TURN
         turn_counter = 0
 
         while game_condition != GameCondition.BLUE_WIN and game_condition != GameCondition.RED_WIN:
+            turn_counter += 1
+            self.turn_counter = turn_counter
+            cards_revealed_this_turn = 0
+            turn_start_time = time.time()
+            self.turn_start_times.append(turn_start_time)
 
             # STRUCTURED TURN OUTPUT
             if game_condition == GameCondition.RED_TURN:
@@ -296,11 +510,13 @@ class Game:
                 guesser = self.guesser_red
                 print("RED TEAM TURN")
                 current_team = "Red"
+                self.red_turns_taken += 1
             else:
                 codemaster = self.codemaster_blue
                 guesser = self.guesser_blue
                 print("BLUE TEAM TURN")
                 current_team = "Blue"
+                self.blue_turns_taken += 1
             
             sys.stdout.flush()
 
@@ -314,10 +530,13 @@ class Game:
 
             # codemaster gives clue & number here
             clue, clue_num = codemaster.get_clue()
+            
+            # Capture clue data
+            self.capture_clue_data(clue, clue_num, codemaster, current_team)
+            
             print(f"STRUCTURED_CLUE: {codemaster.__class__.__name__}|{clue}|{clue_num}|{game_condition.name}")
             sys.stdout.flush()
             
-            turn_counter += 1
             keep_guessing = True
             guess_num = 0
             clue_num = int(clue_num)
@@ -342,6 +561,8 @@ class Game:
                     
                 guess_answer_index = words_in_play.index(guess_answer.upper().strip())
                 game_condition_result = self._accept_guess(guess_answer_index, game_condition)
+                
+                cards_revealed_this_turn += 1
 
                 # Check if the guess was correct for the current team
                 if game_condition == game_condition_result:
@@ -370,6 +591,9 @@ class Game:
                 if game_condition in [GameCondition.RED_WIN, GameCondition.BLUE_WIN]:
                     break
 
+            # Record cards revealed this turn
+            self.cards_revealed_per_turn.append(cards_revealed_this_turn)
+
             # If game ended, break out of main loop
             if game_condition in [GameCondition.RED_WIN, GameCondition.BLUE_WIN]:
                 break
@@ -386,7 +610,16 @@ class Game:
 
         self.game_end_time = time.time()
         self._display_board_codemaster()
+        
         if self.do_log:
             self.write_results(turn_counter)
+        
         print("Game Over")
         sys.stdout.flush()
+        
+        # Print data collection summary if enabled
+        if self.collect_data and self.do_print:
+            print(f"\nData Collection Summary:")
+            print(f"  Clues recorded: {len(self.clue_records)}")
+            print(f"  Guesses recorded: {len(self.guess_records)}")
+            print(f"  Total turns: {turn_counter}")

@@ -38,3 +38,7 @@ TOTAL:15 B:7 C:1 A:1 R:7 CODEMASTER_R:CodemasterSBERT GUESSER_R:GuesserSBERT COD
 TOTAL:12 B:8 C:1 A:0 R:4 CODEMASTER_R:CodemasterSBERT GUESSER_R:GuesserSBERT CODEMASTER_B:CodemasterEmbeddings GUESSER_B:GuesserEmbeddings SEED:42 WINNER:B
 TOTAL:14 B:8 C:1 A:0 R:8 CODEMASTER_R:CodemasterSBERT GUESSER_R:GuesserSBERT CODEMASTER_B:CodemasterEmbeddings GUESSER_B:GuesserEmbeddings SEED:221 WINNER:B
 TOTAL:9 B:0 C:0 A:0 R:9 CODEMASTER_R:CodemasterMCTS GUESSER_R:GuesserEmbeddings CODEMASTER_B:CodemasterEmbeddings GUESSER_B:GuesserEmbeddings SEED:42 WINNER:R
+TOTAL:14 B:8 C:0 A:0 R:8 CODEMASTER_R:CodemasterMCTS GUESSER_R:GuesserEmbeddings CODEMASTER_B:CodemasterEmbeddings GUESSER_B:GuesserEmbeddings SEED:42 WINNER:B
+TOTAL:14 B:8 C:0 A:0 R:8 CODEMASTER_R:CodemasterMCTS GUESSER_R:GuesserEmbeddings CODEMASTER_B:CodemasterEmbeddings GUESSER_B:GuesserEmbeddings SEED:42 WINNER:B
+TOTAL:14 B:8 C:0 A:0 R:8 CODEMASTER_R:CodemasterMCTS GUESSER_R:GuesserEmbeddings CODEMASTER_B:CodemasterEmbeddings GUESSER_B:GuesserEmbeddings SEED:42 WINNER:B
+TOTAL:14 B:8 C:0 A:0 R:8 CODEMASTER_R:CodemasterMCTS GUESSER_R:GuesserEmbeddings CODEMASTER_B:CodemasterEmbeddings GUESSER_B:GuesserEmbeddings SEED:42 WINNER:B

@@ -1,0 +1,44 @@
+ENHANCED TOURNAMENT RANKINGS: GUI_Performance_Tournament_20250529_211906
+Total Games: 2
+================================================================================
+
+TEAM RANKINGS (by Conservative TrueSkill: μ - 3σ)
+------------------------------------------------------------
+ 1. EMD_CM+EMD_Guesser
+    Conservative Skill: 11.66
+    TrueSkill: 31.23 ± 6.52
+    Win Rate: 100.0% (2-0)
+    Wilson 95% CI: [0.342, 1.000]
+    Avg Turns (Wins): 0.0
+    Avg Turns (All): 0.0
+    Avg Words Found: 8.5
+
+ 2. MCTS_CM+EMD_Guesser
+    Conservative Skill: -0.80
+    TrueSkill: 18.77 ± 6.52
+    Win Rate: 0.0% (0-2)
+    Wilson 95% CI: [0.000, 0.658]
+    Avg Turns (Wins): 0.0
+    Avg Turns (All): 0.0
+    Avg Words Found: 7.0
+
+
+CODEMASTER RANKINGS (by Role-based TrueSkill)
+------------------------------------------------------------
+ 1. EMD_CM
+    Role TrueSkill: 29.53 ± 4.37
+    Win Rate: 100.0% (2-0)
+    Composite Believability: 0.000
+
+ 2. MCTS_CM
+    Role TrueSkill: 22.53 ± 4.36
+    Win Rate: 0.0% (0-2)
+    Composite Believability: 0.000
+
+
+GUESSER RANKINGS (by Role-based TrueSkill)
+------------------------------------------------------------
+ 1. EMD_Guesser
+    Role TrueSkill: 24.74 ± 4.37
+    Win Rate: 50.0% (2-2)
+
