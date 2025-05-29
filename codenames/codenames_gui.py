@@ -771,9 +771,14 @@ class CodenamesGUI:
                         if (self.tournament_progress_window and 
                             hasattr(self.tournament_progress_window, 'cancelled') and 
                             not self.tournament_progress_window.cancelled):
-                            
-                            self.root.after(0, lambda: self.tournament_progress_window.update_progress(
-                                games_completed, total_games, f"Game {games_completed} completed"))
+                            #
+                            if (self.tournament_progress_window and 
+                                hasattr(self.tournament_progress_window, 'update_progress') and 
+                                not self.tournament_progress_window.cancelled):
+                                try:
+                                    self.root.after(0, lambda: self.tournament_progress_window.update_progress(...))
+                                except (AttributeError, RuntimeError):
+                                    break
                             
                             # Add log entry for recent matches
                             if tournament.match_results:
