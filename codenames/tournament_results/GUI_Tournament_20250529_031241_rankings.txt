@@ -1,0 +1,28 @@
+TOURNAMENT RANKINGS: GUI_Tournament_20250529_031241
+Max matchups: 500, Games per matchup: 1
+============================================================
+
+ 1. EMD_CM+EMD_Guesser
+    TrueSkill: 32.12 ± 4.60
+    Record: 5-1 (83.3%)
+    Games Played: 6
+    Avg Words Found: 7.0
+
+ 2. MCTS_CM+EMD_Guesser
+    TrueSkill: 30.17 ± 4.55
+    Record: 5-1 (83.3%)
+    Games Played: 6
+    Avg Words Found: 6.8
+
+ 3. EMD_CM+MCTS_Guesser
+    TrueSkill: 17.47 ± 4.38
+    Record: 1-5 (16.7%)
+    Games Played: 6
+    Avg Words Found: 2.5
+
+ 4. MCTS_CM+MCTS_Guesser
+    TrueSkill: 15.67 ± 4.26
+    Record: 1-5 (16.7%)
+    Games Played: 6
+    Avg Words Found: 3.2
+

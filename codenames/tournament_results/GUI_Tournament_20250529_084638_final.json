@@ -1,0 +1,63 @@
+{
+  "tournament_name": "GUI_Tournament_20250529_084638",
+  "total_games": 2,
+  "games_per_matchup": 1,
+  "max_matchups": 500,
+  "match_results": [
+    {
+      "match_id": "MCTS_CM+EMD_Guesser_vs_EMD_CM+EMD_Guesser_1275",
+      "red_codemaster": "MCTS_CM",
+      "red_guesser": "EMD_Guesser",
+      "blue_codemaster": "EMD_CM",
+      "blue_guesser": "EMD_Guesser",
+      "winner": "B",
+      "total_turns": 0,
+      "red_words_found": 8,
+      "blue_words_found": 8,
+      "civilians_hit": 0,
+      "assassin_hit": false,
+      "game_duration": 4.982335805892944,
+      "seed": 1275,
+      "timestamp": "2025-05-29 08:47:50"
+    },
+    {
+      "match_id": "EMD_CM+EMD_Guesser_vs_MCTS_CM+EMD_Guesser_2054",
+      "red_codemaster": "EMD_CM",
+      "red_guesser": "EMD_Guesser",
+      "blue_codemaster": "MCTS_CM",
+      "blue_guesser": "EMD_Guesser",
+      "winner": "R",
+      "total_turns": 0,
+      "red_words_found": 9,
+      "blue_words_found": 7,
+      "civilians_hit": 0,
+      "assassin_hit": false,
+      "game_duration": 5.431451797485352,
+      "seed": 2054,
+      "timestamp": "2025-05-29 08:47:56"
+    }
+  ],
+  "team_stats": {
+    "MCTS_CM+EMD_Guesser": {
+      "codemaster": "MCTS_CM",
+      "guesser": "EMD_Guesser",
+      "wins": 0,
+      "losses": 2,
+      "total_games": 2,
+      "avg_turns_when_winning": 0.0,
+      "avg_words_found": 7.5,
+      "trueskill_rating": "trueskill.Rating(mu=18.770, sigma=6.523)"
+    },
+    "EMD_CM+EMD_Guesser": {
+      "codemaster": "EMD_CM",
+      "guesser": "EMD_Guesser",
+      "wins": 2,
+      "losses": 0,
+      "total_games": 2,
+      "avg_turns_when_winning": 0.0,
+      "avg_words_found": 8.5,
+      "trueskill_rating": "trueskill.Rating(mu=31.230, sigma=6.523)"
+    }
+  },
+  "timestamp": "2025-05-29 08:47:56"
+}

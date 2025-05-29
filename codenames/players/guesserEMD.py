@@ -2,7 +2,7 @@ from players.guesser import Guesser
 import random
 import numpy as np
 from gensim.models import KeyedVectors
-from gensim.downloader import load as gensim_load
+from model_manager import get_glove_model
 
 class GuesserEmbeddings(Guesser):
     """
@@ -26,9 +26,9 @@ class GuesserEmbeddings(Guesser):
         self.avoid_penalty = avoid_penalty
         self.guesses_this_turn = []
         
-        # Load embedding model
-        print(f"Loading embedding model '{model_name}'...")
-        self.model = gensim_load(model_name)
+        # Use shared model instead of loading new instance
+        print(f"Using shared {model_name} model...")
+        self.model = get_glove_model(model_name)
     
     def set_board(self, words):
         """

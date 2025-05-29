@@ -1,0 +1,63 @@
+{
+  "tournament_name": "GUI_Tournament_20250529_083143",
+  "total_games": 2,
+  "games_per_matchup": 1,
+  "max_matchups": 500,
+  "match_results": [
+    {
+      "match_id": "EMD_CM+Naive_Guesser_vs_CL_CM+Naive_Guesser_1201",
+      "red_codemaster": "EMD_CM",
+      "red_guesser": "Naive_Guesser",
+      "blue_codemaster": "CL_CM",
+      "blue_guesser": "Naive_Guesser",
+      "winner": "R",
+      "total_turns": 0,
+      "red_words_found": 9,
+      "blue_words_found": 6,
+      "civilians_hit": 4,
+      "assassin_hit": false,
+      "game_duration": 6.119930982589722,
+      "seed": 1201,
+      "timestamp": "2025-05-29 08:32:56"
+    },
+    {
+      "match_id": "CL_CM+Naive_Guesser_vs_EMD_CM+Naive_Guesser_2943",
+      "red_codemaster": "CL_CM",
+      "red_guesser": "Naive_Guesser",
+      "blue_codemaster": "EMD_CM",
+      "blue_guesser": "Naive_Guesser",
+      "winner": "R",
+      "total_turns": 0,
+      "red_words_found": 9,
+      "blue_words_found": 7,
+      "civilians_hit": 4,
+      "assassin_hit": false,
+      "game_duration": 3.878796100616455,
+      "seed": 2943,
+      "timestamp": "2025-05-29 08:33:00"
+    }
+  ],
+  "team_stats": {
+    "EMD_CM+Naive_Guesser": {
+      "codemaster": "EMD_CM",
+      "guesser": "Naive_Guesser",
+      "wins": 1,
+      "losses": 1,
+      "total_games": 2,
+      "avg_turns_when_winning": 0.0,
+      "avg_words_found": 8.0,
+      "trueskill_rating": "trueskill.Rating(mu=23.357, sigma=6.040)"
+    },
+    "CL_CM+Naive_Guesser": {
+      "codemaster": "CL_CM",
+      "guesser": "Naive_Guesser",
+      "wins": 1,
+      "losses": 1,
+      "total_games": 2,
+      "avg_turns_when_winning": 0.0,
+      "avg_words_found": 7.5,
+      "trueskill_rating": "trueskill.Rating(mu=26.643, sigma=6.040)"
+    }
+  },
+  "timestamp": "2025-05-29 08:33:00"
+}

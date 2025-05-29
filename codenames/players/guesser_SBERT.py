@@ -2,13 +2,14 @@ from players.guesser import Guesser
 import random
 import numpy as np
 from sentence_transformers import SentenceTransformer
+from model_manager import get_glove_model
 
-
+    
 class GuesserSBERT(Guesser):
     def __init__(
         self,
         team="Red",
-        model_name="all-MiniLM-L6-v2",  # You can change to other SBERT models
+        model_name="all-MiniLM-L6-v2",
         similarity_threshold=0.3,
         avoid_penalty=1.0
     ):

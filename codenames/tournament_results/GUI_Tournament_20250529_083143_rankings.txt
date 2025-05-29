@@ -1,0 +1,16 @@
+TOURNAMENT RANKINGS: GUI_Tournament_20250529_083143
+Max matchups: 500, Games per matchup: 1
+============================================================
+
+ 1. CL_CM+Naive_Guesser
+    TrueSkill: 26.64 ± 6.04
+    Record: 1-1 (50.0%)
+    Games Played: 2
+    Avg Words Found: 7.5
+
+ 2. EMD_CM+Naive_Guesser
+    TrueSkill: 23.36 ± 6.04
+    Record: 1-1 (50.0%)
+    Games Played: 2
+    Avg Words Found: 8.0
+

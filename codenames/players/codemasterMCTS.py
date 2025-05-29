@@ -3,7 +3,7 @@ from players.codemaster import Codemaster
 import random
 import math
 import numpy as np
-from gensim.downloader import load as gensim_load
+from model_manager import get_glove_model
 
 class CodemasterMCTS(Codemaster):
     """
@@ -20,8 +20,9 @@ class CodemasterMCTS(Codemaster):
     ):
         super().__init__()
         self.team = team
-        print(f"Loading embedding model '{model_name}'...")
-        self.model = gensim_load(model_name)
+        # Use shared model instead of loading new instance
+        print(f"Using shared {model_name} model...")
+        self.model = get_glove_model(model_name)
 
         # MCTS parameters
         self.num_simulations = num_simulations

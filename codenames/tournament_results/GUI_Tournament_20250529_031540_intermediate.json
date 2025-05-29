@@ -1,0 +1,131 @@
+{
+  "match_results": [
+    {
+      "match_id": "MCTS_CM+SBERT_Guesser_vs_EMD_CM+Naive_Guesser_1855",
+      "red_codemaster": "MCTS_CM",
+      "red_guesser": "SBERT_Guesser",
+      "blue_codemaster": "EMD_CM",
+      "blue_guesser": "Naive_Guesser",
+      "winner": "R",
+      "total_turns": 0,
+      "red_words_found": 9,
+      "blue_words_found": 6,
+      "civilians_hit": 4,
+      "assassin_hit": false,
+      "game_duration": 8.782356977462769,
+      "seed": 1855,
+      "timestamp": "2025-05-29 03:16:19"
+    },
+    {
+      "match_id": "MCTS_CM+MCTS_Guesser_vs_MCTS_CM+EMD_Guesser_8835",
+      "red_codemaster": "MCTS_CM",
+      "red_guesser": "MCTS_Guesser",
+      "blue_codemaster": "MCTS_CM",
+      "blue_guesser": "EMD_Guesser",
+      "winner": "B",
+      "total_turns": 0,
+      "red_words_found": 5,
+      "blue_words_found": 8,
+      "civilians_hit": 1,
+      "assassin_hit": false,
+      "game_duration": 2.620486259460449,
+      "seed": 8835,
+      "timestamp": "2025-05-29 03:16:22"
+    },
+    {
+      "match_id": "EMD_CM+EMD_Guesser_vs_MCTS_CM+SBERT_Guesser_9882",
+      "red_codemaster": "EMD_CM",
+      "red_guesser": "EMD_Guesser",
+      "blue_codemaster": "MCTS_CM",
+      "blue_guesser": "SBERT_Guesser",
+      "winner": "R",
+      "total_turns": 0,
+      "red_words_found": 9,
+      "blue_words_found": 5,
+      "civilians_hit": 2,
+      "assassin_hit": false,
+      "game_duration": 8.068131923675537,
+      "seed": 9882,
+      "timestamp": "2025-05-29 03:16:30"
+    },
+    {
+      "match_id": "EMD_CM+MCTS_Guesser_vs_EMD_CM+Naive_Guesser_10052",
+      "red_codemaster": "EMD_CM",
+      "red_guesser": "MCTS_Guesser",
+      "blue_codemaster": "EMD_CM",
+      "blue_guesser": "Naive_Guesser",
+      "winner": "B",
+      "total_turns": 0,
+      "red_words_found": 4,
+      "blue_words_found": 7,
+      "civilians_hit": 4,
+      "assassin_hit": true,
+      "game_duration": 9.078685998916626,
+      "seed": 10052,
+      "timestamp": "2025-05-29 03:16:39"
+    }
+  ],
+  "team_stats": {
+    "MCTS_CM+SBERT_Guesser": {
+      "codemaster": "MCTS_CM",
+      "guesser": "SBERT_Guesser",
+      "wins": 1,
+      "losses": 1,
+      "total_games": 2,
+      "avg_turns_when_winning": 0.0,
+      "avg_words_found": 7.0,
+      "trueskill_rating": "trueskill.Rating(mu=25.000, sigma=8.333)"
+    },
+    "EMD_CM+Naive_Guesser": {
+      "codemaster": "EMD_CM",
+      "guesser": "Naive_Guesser",
+      "wins": 1,
+      "losses": 1,
+      "total_games": 2,
+      "avg_turns_when_winning": 0.0,
+      "avg_words_found": 6.5,
+      "trueskill_rating": "trueskill.Rating(mu=25.000, sigma=8.333)"
+    },
+    "MCTS_CM+MCTS_Guesser": {
+      "codemaster": "MCTS_CM",
+      "guesser": "MCTS_Guesser",
+      "wins": 0,
+      "losses": 1,
+      "total_games": 1,
+      "avg_turns_when_winning": 0.0,
+      "avg_words_found": 5.0,
+      "trueskill_rating": "trueskill.Rating(mu=25.000, sigma=8.333)"
+    },
+    "MCTS_CM+EMD_Guesser": {
+      "codemaster": "MCTS_CM",
+      "guesser": "EMD_Guesser",
+      "wins": 1,
+      "losses": 0,
+      "total_games": 1,
+      "avg_turns_when_winning": 0.0,
+      "avg_words_found": 8.0,
+      "trueskill_rating": "trueskill.Rating(mu=25.000, sigma=8.333)"
+    },
+    "EMD_CM+EMD_Guesser": {
+      "codemaster": "EMD_CM",
+      "guesser": "EMD_Guesser",
+      "wins": 1,
+      "losses": 0,
+      "total_games": 1,
+      "avg_turns_when_winning": 0.0,
+      "avg_words_found": 9.0,
+      "trueskill_rating": "trueskill.Rating(mu=25.000, sigma=8.333)"
+    },
+    "EMD_CM+MCTS_Guesser": {
+      "codemaster": "EMD_CM",
+      "guesser": "MCTS_Guesser",
+      "wins": 0,
+      "losses": 1,
+      "total_games": 1,
+      "avg_turns_when_winning": 0.0,
+      "avg_words_found": 4.0,
+      "trueskill_rating": "trueskill.Rating(mu=25.000, sigma=8.333)"
+    }
+  },
+  "timestamp": "2025-05-29 03:16:39"
+}

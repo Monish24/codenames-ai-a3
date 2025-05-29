@@ -2,7 +2,7 @@ from players.guesser import Guesser
 import random
 import numpy as np
 from gensim.models import KeyedVectors
-from gensim.downloader import load as gensim_load
+from model_manager import get_glove_model
 
 
 class NaiveGuesser(Guesser):
@@ -14,8 +14,9 @@ class NaiveGuesser(Guesser):
         self.guesses = 0
 
         # Load embedding model
-        print(f"Loading embedding model '{model_name}'...")
-        self.model = gensim_load(model_name)
+        # Use shared model instead of loading new instance
+        print(f"Using shared {model_name} model...")
+        self.model = get_glove_model(model_name)
 
     def set_board(self, words):
         self.words = words

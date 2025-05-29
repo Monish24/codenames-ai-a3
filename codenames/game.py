@@ -96,6 +96,7 @@ class Game:
             random.seed(int(seed))
 
         print("seed:", self.seed)
+        sys.stdout.flush()
 
         # load board words
         wordlist_path = os.path.join(os.path.dirname(__file__), "players", "cm_wordlist.txt")
@@ -187,6 +188,12 @@ class Game:
     def _accept_guess(self, guess_index, game_condition):
         """Function that takes in an int index called guess to compare with the key grid
         """
+        guessed_word = self.words_on_board[guess_index]
+        guessed_team = self.key_grid[guess_index]
+        
+        # STRUCTURED OUTPUT FOR GUI
+        print(f"GUESS_RESULT: {guessed_word}|{guessed_team}|{game_condition.name}")
+        sys.stdout.flush()
 
         if self.key_grid[guess_index] == "Red":
             self.words_on_board[guess_index] = "*Red*"
@@ -283,14 +290,19 @@ class Game:
 
         while game_condition != GameCondition.BLUE_WIN and game_condition != GameCondition.RED_WIN:
 
+            # STRUCTURED TURN OUTPUT
             if game_condition == GameCondition.RED_TURN:
                 codemaster = self.codemaster_red
                 guesser = self.guesser_red
                 print("RED TEAM TURN")
+                current_team = "Red"
             else:
                 codemaster = self.codemaster_blue
                 guesser = self.guesser_blue
                 print("BLUE TEAM TURN")
+                current_team = "Blue"
+            
+            sys.stdout.flush()
 
             # board setup and display
             print('\n' * 2)
@@ -302,6 +314,9 @@ class Game:
 
             # codemaster gives clue & number here
             clue, clue_num = codemaster.get_clue()
+            print(f"STRUCTURED_CLUE: {codemaster.__class__.__name__}|{clue}|{clue_num}|{game_condition.name}")
+            sys.stdout.flush()
+            
             turn_counter += 1
             keep_guessing = True
             guess_num = 0
@@ -311,31 +326,39 @@ class Game:
             guesser.set_clue(clue, clue_num)
 
             while keep_guessing:
-
                 guesser.set_board(words_in_play)
+                
+                # STRUCTURED GUESS OUTPUT
                 guess_answer = guesser.get_answer()
+                
+                # Output the guess in structured format immediately
+                if guess_answer and guess_answer != "no comparisons":
+                    print(f"STRUCTURED_GUESS: {current_team}|{guess_answer}")
+                    sys.stdout.flush()
 
                 # if no comparisons were made/found than retry input from codemaster
                 if guess_answer is None or guess_answer == "no comparisons":
                     break
+                    
                 guess_answer_index = words_in_play.index(guess_answer.upper().strip())
                 game_condition_result = self._accept_guess(guess_answer_index, game_condition)
 
-                # print(game_condition)
-                # print(game_condition_result)
-
+                # Check if the guess was correct for the current team
                 if game_condition == game_condition_result:
+                    # Correct guess - continue guessing
                     print('\n' * 2)
                     self._display_board_codemaster()
                     print("Keep Guessing? the clue is ", clue, clue_num)
                     keep_guessing = guesser.keep_guessing()
 
                     if not keep_guessing:
+                        # Team chooses to stop guessing
                         if game_condition == GameCondition.RED_TURN:
                             game_condition = GameCondition.BLUE_TURN
                         elif game_condition == GameCondition.BLUE_TURN:
                             game_condition = GameCondition.RED_TURN
                 else:
+                    # Wrong guess or special card - turn ends
                     keep_guessing = False
                     game_condition = game_condition_result
 
@@ -343,15 +366,27 @@ class Game:
                 if self.single_team and game_condition == GameCondition.BLUE_TURN:
                     game_condition = GameCondition.RED_TURN
 
+                # Check for immediate game end (assassin or win condition)
+                if game_condition in [GameCondition.RED_WIN, GameCondition.BLUE_WIN]:
+                    break
+
+            # If game ended, break out of main loop
+            if game_condition in [GameCondition.RED_WIN, GameCondition.BLUE_WIN]:
+                break
+
+        # STRUCTURED WIN OUTPUT
         if game_condition == GameCondition.RED_WIN:
             self.game_winner = "R"
-            print("Red Team Wins!")
+            print("GAME_END: Red Team Wins!")
         else:
             self.game_winner = "B"
-            print("Blue Team Wins!")
+            print("GAME_END: Blue Team Wins!")
+        
+        sys.stdout.flush()
 
         self.game_end_time = time.time()
         self._display_board_codemaster()
         if self.do_log:
             self.write_results(turn_counter)
         print("Game Over")
+        sys.stdout.flush()
